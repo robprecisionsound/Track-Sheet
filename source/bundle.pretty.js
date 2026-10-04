@@ -39679,6 +39679,17 @@ This typically indicates that your device does not have a healthy Internet conne
       return "currentSession";
     }
   }
+  function SKey() {
+    let s = FR();
+    return s === "currentSession" ? "current_session" : "session_" + s;
+  }
+  function SeedName(m) {
+    try {
+      let nm = new URLSearchParams(window.location.search).get("name");
+      if (nm) return { ...m, sessionName: nm };
+    } catch {}
+    return m;
+  }
   function QM(t) {
     return `${
       t
@@ -39846,7 +39857,7 @@ This typically indicates that your device does not have a healthy Internet conne
     };
   function tV() {
     try {
-      let t = localStorage.getItem(Bv + "current_session");
+      let t = localStorage.getItem(Bv + SKey());
       return t ? JSON.parse(t) : null;
     } catch {
       return null;
@@ -42115,31 +42126,22 @@ This typically indicates that your device does not have a healthy Internet conne
                       onClick: f,
                       active: h,
                     }),
-                    (0, d.jsx)(Ot, {
-                      icon: hC,
-                      title: "Save session",
-                      onClick: o,
-                    }),
-                    (0, d.jsx)(Ot, {
-                      icon: BC,
-                      title: "Load session",
-                      onClick: a,
-                    }),
-                    (0, d.jsx)(Ot, {
-                      icon: mC,
-                      title: "Session templates",
-                      onClick: I,
-                    }),
+                    
                     (0, d.jsx)(Ot, {
                       icon: AT,
                       title: "Activity log",
                       onClick: T,
                     }),
-                    (0, d.jsx)(Ot, {
-                      icon: xT,
-                      title:
-                        "Sessions \u2014 share a link, or switch between sessions",
+                    (0, d.jsxs)("button", {
                       onClick: k,
+                      title: "New sheet, save, open an earlier session, clear the sheet, share a link",
+                      style: { display: "flex", alignItems: "center", gap: 6, background: "rgba(232,163,61,0.12)", border: `1px solid ${g.amber}`, borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, color: g.text, cursor: "pointer", maxWidth: 260 },
+                      children: [
+                        (0, d.jsx)(BC, { size: 13, color: g.amber }),
+                        "Sessions",
+                        (0, d.jsx)("span", { style: { fontWeight: 500, color: g.textFaint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }, children: t.sessionName ? "\u00B7 " + t.sessionName : "" }),
+                        (0, d.jsx)(yd, { size: 12, color: g.textFaint }),
+                      ],
                     }),
                     (0, d.jsx)("div", {
                       style: {
@@ -44714,6 +44716,164 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
     fontSize: 13,
     cursor: "pointer",
   };
+    function SessionHub(p) {
+    const h = U.createElement, st = U.useState;
+    const [rename, setRename] = st("");
+    const [newName, setNewName] = st("");
+    const [snapName, setSnapName] = st("");
+    const [tplName, setTplName] = st("");
+    const [confirm, setConfirm] = st(null);
+    const [busy, setBusy] = st(null);
+    const [flash, setFlash] = st(null);
+    const unnamed = !p.sessionName || p.sessionName === "Untitled Session";
+    const shared = p.connStatus === "shared";
+    const lab = { fontSize: 11, fontWeight: 700, color: g.textFaint, letterSpacing: 0.5, textTransform: "uppercase", margin: "0 0 8px" };
+    const card = { background: g.raised, border: `1px solid ${g.hairline}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12 };
+    const note = { fontSize: 11.5, color: g.textFaint, margin: "0 0 10px", lineHeight: 1.45 };
+    const kinds = {
+      primary: { background: g.amber, color: "#1a1204", border: "1px solid " + g.amber },
+      secondary: { background: "transparent", color: g.textDim, border: "1px solid " + g.hairline },
+      danger: { background: "transparent", color: g.red, border: "1px solid " + g.red },
+      dangerSolid: { background: g.red, color: "#fff", border: "1px solid " + g.red },
+    };
+    const btn = (label, onClick, kind, disabled, title) =>
+      h("button", {
+        key: label, onClick: disabled ? undefined : onClick, disabled: !!disabled, title,
+        style: { ...kinds[kind || "secondary"], borderRadius: 6, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.45 : 1, whiteSpace: "nowrap" },
+      }, label);
+    const field = (value, set, placeholder, onEnter) =>
+      h(zt, { value, onChange: set, placeholder, style: { flex: 1 }, onKeyDown: (e) => { if (e.key === "Enter" && onEnter) onEnter(); } });
+    const inputRow = (value, set, placeholder, label, onGo, kind) =>
+      h("div", { style: { display: "flex", gap: 8 } }, field(value, set, placeholder, () => value.trim() && onGo()), btn(label, onGo, kind || "primary", !value.trim()));
+    const rowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 0", borderTop: `1px solid ${g.hairlineSoft}` };
+    const tag = (text, color) => h("span", { style: { fontSize: 9.5, fontWeight: 700, color, border: `1px solid ${color}`, borderRadius: 4, padding: "0 5px", marginLeft: 6, letterSpacing: 0.3 } }, text);
+    const snapLabel = (s) => s.label || (s.meta && s.meta.sessionName) || "Snapshot";
+    const ago = (iso) => (iso ? nx(iso) : "");
+    const say = (msg) => { setFlash(msg); setTimeout(() => setFlash((m) => (m === msg ? null : m)), 4000); };
+    const go = async (msg, fn) => { setBusy(msg); try { await fn(); } catch (e) { setBusy(null); } };
+
+    const snaps = p.snapshots || [];
+    const cloudAll = (p.cloudSessions || []).filter((s) => !s.hidden);
+    const hasCurrent = cloudAll.some((s) => s.id === p.sessionId);
+    const cloud = (hasCurrent ? cloudAll : [{ id: p.sessionId, name: p.sessionName, updatedAt: null }, ...cloudAll])
+      .sort((a, b) => (a.id === p.sessionId ? -1 : b.id === p.sessionId ? 1 : String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))));
+
+    if (busy) {
+      return h(Ba, { title: "Sessions", onClose: () => {}, width: 560 },
+        h("div", { style: { ...card, textAlign: "center", padding: 28 } },
+          h("div", { style: { fontWeight: 700, color: g.text, fontSize: 14, marginBottom: 6 } }, busy),
+          h("div", { style: note }, "Making sure everything is saved first \u2014 this only takes a moment.")));
+    }
+    if (confirm) {
+      return h(Ba, { title: confirm.title, onClose: () => setConfirm(null), width: 520 },
+        h("div", { style: { ...card, borderColor: confirm.danger ? g.red : g.hairline } },
+          confirm.body.map((line, ix) => h("p", { key: ix, style: { margin: ix ? "8px 0 0" : 0, fontSize: 12.5, color: g.text, lineHeight: 1.5 } }, line))),
+        h("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 } },
+          btn("Cancel", () => setConfirm(null), "secondary"),
+          btn(confirm.confirmLabel, confirm.onConfirm, confirm.danger ? "dangerSolid" : "primary")));
+    }
+
+    const askClear = () => setConfirm({
+      title: "Clear the entire sheet?", danger: true, confirmLabel: "Clear entire sheet",
+      body: [
+        `This empties all ${p.totalLines} tie lines (${p.activeCount} in use right now) and every hardware insert.`,
+        "Kept: the session name and details, your notepad, and your gear inventory.",
+        "Safety net: a snapshot of the sheet is saved first (find it under \u201CSnapshots on this device\u201D), and Undo (Cmd/Ctrl+Z) also brings it back.",
+      ],
+      onConfirm: () => { p.onClearSheet(); setConfirm(null); p.onClose(); },
+    });
+    const askRestore = (s) => setConfirm({
+      title: "Restore this snapshot?", confirmLabel: "Restore snapshot",
+      body: [
+        `Replace the tie lines and inserts on this sheet with \u201C${snapLabel(s)}\u201D (saved ${ago(s.savedAt)}, ${(s.channels || []).filter(Fr).length} in use)?`,
+        "Your current sheet is saved as a snapshot first, so you can come back to it.",
+      ],
+      onConfirm: () => { p.onRestoreSnapshot(s); setConfirm(null); p.onClose(); },
+    });
+    const askTemplate = (t) => setConfirm({
+      title: "Apply this template?", confirmLabel: "Apply template",
+      body: [
+        `Replace the tie lines and inserts on this sheet with the template \u201C${t.name}\u201D?`,
+        "Your current sheet is saved as a snapshot first, so you can come back to it.",
+      ],
+      onConfirm: () => { p.onApplyTemplate(t); setConfirm(null); p.onClose(); },
+    });
+
+    const thisSheet = h("div", { key: "this", style: card },
+      h("p", { style: lab }, "This sheet"),
+      h("div", { style: { fontSize: 15, fontWeight: 700, color: g.text, marginBottom: 4 } }, unnamed ? "Untitled session" : p.sessionName),
+      h("div", { style: { fontSize: 11.5, color: shared ? g.green : g.red, marginBottom: 10, fontWeight: 600 } },
+        shared ? "\u25CF Saved automatically to the cloud as you work \u2014 anyone with this link sees it live." : "\u25CF Not connected to the cloud \u2014 this sheet is only saved in this browser right now."),
+      unnamed && h("p", { style: { ...note, color: g.amber } }, "Give it a name so you can find it again later."),
+      h("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
+        field(rename, setRename, unnamed ? "Name this session\u2026" : "Rename this session\u2026", () => { if (rename.trim()) { p.onRename(rename.trim()); setRename(""); } }),
+        btn(unnamed ? "Save name" : "Rename", () => { p.onRename(rename.trim()); setRename(""); }, "secondary", !rename.trim())),
+      h("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
+        btn(p.copied ? "Link copied \u2713" : "Copy share link", p.onCopyLink, "secondary"),
+        h("span", { style: { fontSize: 11, color: g.textFaint } }, "Send it to a colleague to work on this sheet together.")));
+
+    const startNew = h("div", { key: "new", style: card },
+      h("p", { style: lab }, "Start a new sheet"),
+      h("p", { style: note }, "Opens a fresh, empty sheet with its own link. This sheet stays exactly as it is \u2014 reopen it any time from \u201COpen an earlier session\u201D below."),
+      inputRow(newName, setNewName, "Name for the new sheet\u2026", "Create new sheet", () => go(`Saving \u201C${unnamed ? "this sheet" : p.sessionName}\u201D, then opening \u201C${newName.trim()}\u201D\u2026`, () => p.onNewSession(newName.trim()))));
+
+    const save = h("div", { key: "save", style: card },
+      h("p", { style: lab }, "Save"),
+      h("p", { style: note }, "Your sheet is already saved continuously. Use these when you want a named point to come back to, or something reusable."),
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: g.text, marginBottom: 4 } }, "Snapshot of this sheet"),
+      h("p", { style: { ...note, marginBottom: 6 } }, "A restore point (e.g. \u201CBefore overdubs\u201D). Kept in this browser."),
+      inputRow(snapName, setSnapName, "Snapshot name\u2026", "Save snapshot", () => { p.onSaveSnapshot(snapName.trim()); say(`Saved snapshot \u201C${snapName.trim()}\u201D.`); setSnapName(""); }),
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: g.text, margin: "14px 0 4px" } }, "Template"),
+      h("p", { style: { ...note, marginBottom: 6 } }, "A reusable starting setup (e.g. \u201CStandard drum kit\u201D). Kept in this browser."),
+      inputRow(tplName, setTplName, "Template name\u2026", "Save as template", () => { p.onSaveTemplate(tplName.trim()); say(`Saved template \u201C${tplName.trim()}\u201D.`); setTplName(""); }),
+      h("div", { style: { display: "flex", gap: 8, marginTop: 14, alignItems: "center", flexWrap: "wrap" } },
+        btn("Export to file", p.onExport, "secondary", false, "Download this sheet as a file you can keep or email"),
+        btn("Import from file", p.onImport, "secondary", false, "Load a sheet from a file you exported earlier"),
+        h("span", { style: { fontSize: 11, color: g.textFaint } }, "Files work across computers.")));
+
+    const open = h("div", { key: "open", style: card },
+      h("p", { style: lab }, "Open an earlier session"),
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: g.text, marginBottom: 2 } }, "Sessions in the cloud"),
+      h("p", { style: { ...note, marginBottom: 4 } }, p.cloudReady ? "Every session anyone has worked on, newest first. Opening one switches this tab to it." : "Connecting to the cloud list\u2026 (it only shows when this device is online)."),
+      cloud.map((s) => {
+        const isCur = s.id === p.sessionId;
+        const nm = s.name || (s.id === "currentSession" ? "Original shared session" : "Untitled session");
+        return h("div", { key: s.id, style: rowStyle },
+          h("div", { style: { minWidth: 0 } },
+            h("div", { style: { fontSize: 12.5, color: g.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, nm, isCur && tag("OPEN NOW", g.green)),
+            h("div", { style: { fontSize: 10.5, color: g.textFaint } }, [s.updatedAt ? `edited ${ago(s.updatedAt)}` : null, s.active != null ? `${s.active} in use` : null].filter(Boolean).join(" \u00B7 "))),
+          h("div", { style: { display: "flex", gap: 6, flexShrink: 0 } },
+            !isCur && btn("Open", () => go(`Opening \u201C${nm}\u201D\u2026`, () => p.onOpenSession(s.id)), "primary"),
+            !isCur && btn("Hide", () => p.onHideSession(s.id), "secondary", false, "Remove from this list (the session itself is not deleted)")));
+      }),
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: g.text, margin: "14px 0 2px" } }, "Snapshots on this device"),
+      snaps.length === 0 ? h("p", { style: { ...note, marginBottom: 0 } }, "None yet. Save one above, or one is made automatically before you clear, restore, or apply a template.") : null,
+      snaps.map((s) => h("div", { key: s.id, style: rowStyle },
+        h("div", { style: { minWidth: 0 } },
+          h("div", { style: { fontSize: 12.5, color: g.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, snapLabel(s), s.auto && tag("AUTO", g.textFaint)),
+          h("div", { style: { fontSize: 10.5, color: g.textFaint } }, `saved ${ago(s.savedAt)} \u00B7 ${(s.channels || []).filter(Fr).length} in use`)),
+        h("div", { style: { display: "flex", gap: 6, flexShrink: 0 } },
+          btn("Restore\u2026", () => askRestore(s), "primary"),
+          btn("Delete", () => p.onDeleteSnapshot(s.id), "secondary")))),
+      (p.templates || []).length > 0 && h("div", { style: { fontSize: 12, fontWeight: 700, color: g.text, margin: "14px 0 2px" } }, "Templates on this device"),
+      (p.templates || []).map((t) => h("div", { key: t.id, style: rowStyle },
+        h("div", { style: { minWidth: 0 } },
+          h("div", { style: { fontSize: 12.5, color: g.text, fontWeight: 600 } }, t.name),
+          h("div", { style: { fontSize: 10.5, color: g.textFaint } }, `saved ${ago(t.savedAt)} \u00B7 ${(t.channels || []).filter(Fr).length} in use`)),
+        h("div", { style: { display: "flex", gap: 6, flexShrink: 0 } },
+          btn("Apply\u2026", () => askTemplate(t), "primary"),
+          btn("Delete", () => p.onDeleteTemplate(t.id), "secondary")))));
+
+    const clear = h("div", { key: "clear", style: { ...card, borderColor: g.red, marginBottom: 0 } },
+      h("p", { style: { ...lab, color: g.red } }, "Clear"),
+      h("p", { style: note }, "Empties every tie line and hardware insert on this sheet. A snapshot is saved first, and Undo brings it back."),
+      btn("Clear entire sheet\u2026", askClear, "danger"));
+
+    return h(Ba, { title: "Sessions", onClose: p.onClose, width: 640 },
+      flash && h("div", { style: { background: "rgba(61,220,132,0.14)", color: g.green, border: `1px solid ${g.green}`, borderRadius: 6, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 } }, flash),
+      thisSheet, startNew, save, open, clear);
+  }
+
   function SV({
     onClose: t,
     sessionId: e,
@@ -45277,7 +45437,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       e = (0, U.useRef)(null);
     e.current === null && (e.current = tV() || {});
     let n = e.current,
-      [r, i] = (0, U.useState)(() => n.meta || kV()),
+      [r, i] = (0, U.useState)(() => n.meta || SeedName(kV())),
       [s, o] = (0, U.useState)(() => n.channels || YM()),
       [a, l] = (0, U.useState)(() => n.inserts || []),
       [c, h] = (0, U.useState)(() => n.gearOverrides || {}),
@@ -45314,9 +45474,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       )
         return;
       let F = v.pop();
-      ((G.current = !0),
-        o(F.channels),
-        l(F.inserts),
+      ((G.current = !0), o(F.channels.map((c2) => (s.find((x2) => x2.line === c2.line) === c2 ? c2 : { ...c2, updatedAt: dn() }))), l(F.inserts),
         (y.current = F),
         T((K) => K + 1));
     }
@@ -45526,16 +45684,11 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
         Nn((v) => (v === "shared" ? "shared" : "syncing")),
         clearTimeout(nu.current),
         (nu.current = setTimeout(async () => {
-          let v = {
-            meta: r,
-            channels: s,
-            inserts: a,
-            gearOverrides: c,
-            customGear: f,
-            scratchNotes: Lt,
-            activityLog: xn,
-          };
-          if ((await eV.set("current_session", v), !ya.current))
+          let v = { meta: r, channels: s, inserts: a, gearOverrides: c, customGear: f, scratchNotes: Lt, activityLog: xn, writer: hubWriter.current }, skipW = !1;
+          { const ap = hubApplied.current;
+            if (ap && s === ap.channels && (ap.meta === void 0 || r === ap.meta) && (ap.inserts === void 0 || a === ap.inserts) && (ap.gearOverrides === void 0 || c === ap.gearOverrides) && (ap.customGear === void 0 || f === ap.customGear) && (ap.scratchNotes == null || Lt === ap.scratchNotes) && (ap.activityLog === void 0 || xn === ap.activityLog)) skipW = !0;
+            else hubApplied.current = null; }
+          if ((await eV.set(SKey(), v), !ya.current && !skipW))
             if (Er.current && di.current)
               try {
                 (await Er.current.set(v, { merge: !1 }), Nn("shared"));
@@ -45557,9 +45710,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
         inserts: a,
         gearOverrides: c,
         customGear: f,
-        scratchNotes: Lt,
-      };
-    }, [r, s, a, c, f, Lt]);
+        scratchNotes: Lt, activityLog: xn, }; }, [r, s, a, c, f, Lt, xn]);
     let ya = (0, U.useRef)(!1),
       di = (0, U.useRef)(!1),
       [ru, iu] = (0, U.useState)(0);
@@ -45599,24 +45750,21 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                   }
                   let er = Ip(ge.channels) || [],
                     On = er.filter(Fr).length;
-                  if (Ne && qe && qr > On) {
-                    ((di.current = !0),
-                      Nn("shared"),
-                      Er.current?.set(qe, { merge: !1 }).catch(() => {}));
-                    return;
+                  if (Ne && qe && qr > On) { try { xe((K) => { const F = { id: Yl(), savedAt: dn(), auto: !0, label: "Auto-backup: this browser\u2019s copy before syncing", meta: qe.meta, channels: qe.channels, inserts: qe.inserts, gearOverrides: qe.gearOverrides, customGear: qe.customGear, scratchNotes: qe.scratchNotes }; let cnt = 0; return [F, ...K].filter((x) => !x.auto || ++cnt <= 5).slice(0, 40); }); } catch {} }
+                  if (!Ne && ge.writer && ge.writer === hubWriter.current) { Nn("shared"); return; }
+                  let kept = !1, mergedLog;
+                  if (qe && qe.channels) {
+                    const lm = new Map(qe.channels.map((c2) => [c2.line, c2]));
+                    er = er.map((rc) => { const lc = lm.get(rc.line); return lc && String(lc.updatedAt || "") > String(rc.updatedAt || "") ? ((kept = !0), lc) : rc; });
                   }
-                  if (
-                    ((ya.current = !0),
-                    ge.meta && i(ge.meta),
-                    o(er),
-                    ge.inserts && l(ge.inserts),
-                    ge.gearOverrides && h(ge.gearOverrides),
-                    ge.customGear && m(ge.customGear),
-                    ge.scratchNotes != null && sn(ge.scratchNotes),
-                    Array.isArray(ge.activityLog))
-                  ) {
-                    mr(ge.activityLog);
-                    let tr = ge.activityLog[0];
+                  if (Array.isArray(ge.activityLog)) {
+                    const seenL = new Set(), lg = [];
+                    for (const e2 of [...ge.activityLog, ...((qe && qe.activityLog) || [])]) { const k2 = e2.ts + "|" + e2.name + "|" + e2.message; if (!seenL.has(k2)) { seenL.add(k2); lg.push(e2); } }
+                    lg.sort((x2, y2) => String(y2.ts).localeCompare(String(x2.ts)));
+                    mergedLog = lg.slice(0, 60);
+                  }
+                  hubApplied.current = kept ? null : { channels: er, meta: ge.meta, inserts: ge.inserts, gearOverrides: ge.gearOverrides, customGear: ge.customGear, scratchNotes: ge.scratchNotes, activityLog: mergedLog };
+                  if ( ((ya.current = !0), ge.meta && i(ge.meta), o(er), ge.inserts && l(ge.inserts), ge.gearOverrides && h(ge.gearOverrides), ge.customGear && m(ge.customGear), ge.scratchNotes != null && sn(ge.scratchNotes), Array.isArray(ge.activityLog)) ) { mr(mergedLog); let tr = ge.activityLog[0];
                     tr && tr.ts !== q.current && !Ne
                       ? ((q.current = tr.ts),
                         Ft(tr),
@@ -46193,6 +46341,83 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
     function Up(v) {
       hi((F) => F.filter((K) => K.id !== v));
     }
+    let hubIdxRef = (0, U.useRef)(null),
+      hubSigRef = (0, U.useRef)(""),
+      hubTimeRef = (0, U.useRef)(0), hubWriter = (0, U.useRef)(Yl()), hubApplied = (0, U.useRef)(null),
+      [hubCloud, setHubCloud] = (0, U.useState)([]),
+      [hubReady, setHubReady] = (0, U.useState)(!1);
+    (0, U.useEffect)(() => {
+      let unsub = null, dead = !1;
+      return (
+        (async () => {
+          try {
+            let { initFirebaseSession: Q } = await Promise.resolve().then(() => (LR(), OR)),
+              { docRef: dr, onRemoteChange: oc } = await Q("_index");
+            if (dead) return;
+            ((hubIdxRef.current = dr),
+              (unsub = oc(
+                (data) => {
+                  setHubReady(!0);
+                  setHubCloud(data && data.sessions ? Object.entries(data.sessions).map(([id, v]) => ({ id, ...v })) : []);
+                },
+                () => { hubIdxRef.current = null; },
+              )));
+          } catch {}
+        })(),
+        () => { ((dead = !0), unsub && unsub()); }
+      );
+    }, []);
+    (0, U.useEffect)(() => {
+      if (!hubReady || bp !== "shared" || !hubIdxRef.current) return;
+      let active = s.filter(Fr).length, sig = Qi + "|" + (r.sessionName || "") + "|" + active;
+      let t = setTimeout(() => {
+        if (hubSigRef.current === sig && Date.now() - hubTimeRef.current < 3e5) return;
+        ((hubSigRef.current = sig), (hubTimeRef.current = Date.now()));
+        hubIdxRef.current?.set({ sessions: { [Qi]: { name: r.sessionName || "", updatedAt: dn(), active, hidden: !1 } } }, { merge: !0 }).catch(() => {});
+      }, 1500);
+      return () => clearTimeout(t);
+    }, [hubReady, bp, r.sessionName, s, Qi]);
+    function hubCap(list) {
+      let n = 0;
+      return list.filter((x) => !x.auto || ++n <= 5).slice(0, 40);
+    }
+    function hubSnap(label, auto) {
+      let F = { id: Yl(), savedAt: dn(), auto: !!auto, label, meta: r, channels: s, inserts: a, gearOverrides: c, customGear: f, scratchNotes: Lt };
+      xe((K) => hubCap([F, ...K]));
+    }
+    function hubClear() {
+      (hubSnap("Before clearing the sheet", !0), o((Ip([]) || []).map((c2) => ({ ...c2, updatedAt: dn() }))), l([]), Yn("cleared the entire sheet"));
+    }
+    function hubRestore(v) {
+      (hubSnap("Before restoring a snapshot", !0), o((Ip(v.channels) || v.channels).map((c2) => ({ ...c2, updatedAt: dn() }))),
+        l(v.inserts || []),
+        h(v.gearOverrides || {}),
+        m(v.customGear || { mic: [], preamp: [], outboard: [] }),
+        sn(v.scratchNotes || ""),
+        Yn(`restored the snapshot \u201C${v.label || (v.meta && v.meta.sessionName) || "Snapshot"}\u201D`));
+    }
+    function hubApplyTpl(v) {
+      (hubSnap("Before applying a template", !0), o((Ip(v.channels) || v.channels).map((c2) => ({ ...c2, updatedAt: dn() }))), l(v.inserts || []), Yn(`applied the \u201C${v.name}\u201D template`));
+    }
+    async function hubNew(name) {
+      let nm = name.trim();
+      if (!nm) return;
+      let cur = r.sessionName && r.sessionName !== "Untitled Session" ? r.sessionName : `Session ${new Date().toLocaleDateString()}`;
+      cur !== r.sessionName && i((F) => ({ ...F, sessionName: cur }));
+      await Promise.all([
+        hubIdxRef.current ? hubIdxRef.current.set({ sessions: { [Qi]: { name: cur, updatedAt: dn(), active: s.filter(Fr).length, hidden: !1 } } }, { merge: !0 }).catch(() => {}) : null,
+        new Promise((res) => setTimeout(res, 900)),
+      ]);
+      window.location.href = `${window.location.pathname}?session=${encodeURIComponent(QM(nm))}&name=${encodeURIComponent(nm)}`;
+    }
+    async function hubOpen(id) {
+      await new Promise((res) => setTimeout(res, 700));
+      window.location.href = `${window.location.pathname}?session=${encodeURIComponent(id)}`;
+    }
+    function hubHide(id) {
+      (hubIdxRef.current?.set({ sessions: { [id]: { hidden: !0 } } }, { merge: !0 }).catch(() => {}),
+        setHubCloud((prev) => prev.map((x) => (x.id === id ? { ...x, hidden: !0 } : x))));
+    }
     async function wa() {
       let v = {
           meta: r,
@@ -46230,9 +46455,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
         try {
           let Q = JSON.parse(K.result);
           if ((Q.meta && i(Q.meta), Q.channels)) {
-            let ee = Ip(Q.channels);
-            ee && o(ee);
-          }
+            let ee = Ip(Q.channels); ee && o(ee.map((c2) => ({ ...c2, updatedAt: dn() }))); }
           (Q.inserts && l(Q.inserts),
             Q.gearOverrides && h(Q.gearOverrides),
             Q.customGear && m(Q.customGear),
@@ -46583,15 +46806,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
             lt === "activity" &&
               (0, d.jsx)(bV, { onClose: () => re(null), activityLog: xn }),
             lt === "sessions" &&
-              (0, d.jsx)(SV, {
-                onClose: () => re(null),
-                sessionId: Qi,
-                sessionName: r.sessionName,
-                recentSessions: Ap,
-                onCopyLink: eu,
-                copied: xh,
-                onRenameCurrent: (v) => i((F) => ({ ...F, sessionName: v })),
-              }),
+              (0, d.jsx)(SessionHub, { onClose: () => re(null), sessionId: Qi, sessionName: r.sessionName, connStatus: bp, totalLines: Lr, activeCount: s.filter(Fr).length, cloudSessions: hubCloud, cloudReady: hubReady, snapshots: ie, templates: Ye, copied: xh, onCopyLink: eu, onRename: (v) => i((F) => ({ ...F, sessionName: v })), onNewSession: hubNew, onOpenSession: hubOpen, onHideSession: hubHide, onSaveSnapshot: (v) => hubSnap(v, !1), onDeleteSnapshot: Mp, onRestoreSnapshot: hubRestore, onSaveTemplate: Vp, onApplyTemplate: hubApplyTpl, onDeleteTemplate: Up, onClearSheet: hubClear, onExport: wa, onImport: () => fu.current?.click() }),
             !pn && (0, d.jsx)(AV, { onSet: Mr }),
             (0, d.jsx)(RV, { entry: Vr }),
             (0, d.jsxs)("footer", {
@@ -46726,7 +46941,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-04 13:27 UTC";
+  var GV = "2026-10-04 15:33 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
