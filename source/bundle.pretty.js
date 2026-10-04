@@ -39522,17 +39522,13 @@ This typically indicates that your device does not have a healthy Internet conne
     qM = 96,
     Js = [
       {
-        id: "LV_A",
-        label: "Live Room Box A",
-        prefix: "LV",
+        id: "LV_A", label: "Live Room Box A", prefix: "LR",
         start: 1,
         end: 24,
         room: "Live Room A",
       },
       {
-        id: "LV_B",
-        label: "Live Room Box B",
-        prefix: "LV",
+        id: "LV_B", label: "Live Room Box B", prefix: "LR",
         start: 25,
         end: 32,
         room: "Live Room B",
@@ -39775,15 +39771,150 @@ This typically indicates that your device does not have a healthy Internet conne
       (t.outboard && t.outboard.length)
     );
   }
-  function Ji(t) {
-    return t
-      ? t.kind === "mic"
-        ? t.name
-        : t.brand
-          ? `${t.brand} ${t.name}`
-          : t.name
-      : "";
+    var PaletteIcon = Te('<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" /> <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /> <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /> <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /> <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />');
+  // ---- automatic color coding ------------------------------------------------
+  // Sources: the row's background comes from whichever category the Source text
+  // matches. Matching is by whole words (so "OH L", "Gtr2", "Snare Top" all work),
+  // tolerates a trailing "s", and the longest/leftmost phrase wins ("Synth Bass"
+  // is Bass, not Keys; "Bass Drum" is Drums, not Bass).
+  var SRC_COLOR_RULES = [
+    { name: "Guitars", bg: "#2F9E5B", words: ["guitar", "gtr", "ac", "e gtr", "a gtr"] },
+    { name: "Bass", bg: "#2E6BDB", words: ["bass", "e bass", "synth bass"] },
+    { name: "Keys", bg: "#A83279", words: ["keys", "nord", "synth", "moog", "mini", "model d", "mellotron", "melotron", "melo", "mello", "obx", "obx8", "ob6", "prophet", "p5", "p10"] },
+    { name: "Drums", bg: "#7C4DCC", words: ["drums", "kit", "kick", "kick in", "kick out", "snare", "snr", "snare top", "snare bottom", "snare btm", "snr top", "snr btm", "tom", "floor", "rack", "hat", "overhead", "overheads", "oh", "ohs", "bass drum"] },
+    { name: "Brass / Horns", bg: "#E8832A", words: ["trumpet", "trump", "horn", "sax"] },
+    { name: "Woods", bg: "#8A5A33", words: ["wood", "woods", "clarinet", "flute", "flt", "clar"] },
+    { name: "Piano", bg: "#1E1E22", words: ["piano", "pno"] },
+  ];
+  // Gear: matched on brand or model. fg = text color, bg = field background.
+  var BRAND_COLOR_RULES = [
+    { keys: ["api"], bg: "#4169E1", fg: "#FFFFFF" },
+    { keys: ["manley"], bg: "#16255A", fg: "#FFFFFF" },
+    { keys: ["bock"], bg: "#9FE3BE", fg: "#111418" },
+    { keys: ["neumann"], bg: "#4A4F57", fg: "#FFFFFF" },
+    { keys: ["dpa"], bg: "#111111", fg: "#FFFFFF" },
+    { keys: ["uta"], bg: "#F6D43A", fg: "#111418" },
+    { keys: ["coil audio"], bg: "#D9DCE1", fg: "#111418" },
+    { keys: ["soyuz"], bg: "#D9DCE1", fg: "#111418" },
+    { keys: ["bae"], bg: "#16255A", fg: "#FF5A5F" },
+    { keys: ["beyerdynamic", "beyer"], bg: "#111111", fg: "#FFFFFF" },
+    { keys: ["chandler"], bg: "#16255A", fg: "#FFD83D" },
+    { keys: ["coles"], bg: "#111111", fg: "#FFFFFF" },
+    { keys: ["gefell"], bg: "#D9DCE1", fg: "#111418" },
+    { keys: ["josephson"], bg: "#111111", fg: "#FFFFFF" },
+    { keys: ["schoeps"], bg: "#4A4F57", fg: "#FFFFFF" },
+    { keys: ["sennheiser", "sennhiser"], bg: "#FFFFFF", fg: "#111418" },
+    { keys: ["shure"], bg: "#0B0B0B", fg: "#39FF14" },
+    { keys: ["empirical labs", "empirical"], bg: "#0B0B0B", fg: "#FFD83D" },
+    { keys: ["dangerous audio", "dangerous"], bg: "#0B0B0B", fg: "#FF8A1F" },
+    { keys: ["maselec"], bg: "#111111", fg: "#FFFFFF" },
+    { keys: ["pultec"], bg: "#5D6E96", fg: "#FFFFFF" },
+    { keys: ["purple"], bg: "#6B3FA0", fg: "#FFFFFF" },
+    { keys: ["retro"], bg: "#A9AEB5", fg: "#111418" },
+    { keys: ["neve"], bg: "#16255A", fg: "#FF5A5F" },
+    { keys: ["laal"], bg: "#111111", fg: "#FFFFFF" },
+    { keys: ["la2a"], bg: "#D9DCE1", fg: "#C4161C" },
+    { keys: ["tube tech"], bg: "#4169E1", fg: "#FFFFFF" },
+  ];
+  function colorTokens(s) {
+    return String(s || "").toLowerCase().replace(/([a-z])(\d)/g, "$1 $2").replace(/(\d)([a-z])/g, "$1 $2").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
   }
+  function tokEq(a, b) { return a === b || a === b + "s" || b === a + "s"; }
+  function findPhrase(toks, phrase) {
+    const pt = colorTokens(phrase);
+    if (!pt.length) return -1;
+    for (let i = 0; i + pt.length <= toks.length; i++) if (pt.every((x, j) => tokEq(toks[i + j], x))) return i;
+    return -1;
+  }
+  var _srcCache = new Map();
+  function matchSourceColor(text) {
+    const key = String(text || "");
+    if (_srcCache.has(key)) return _srcCache.get(key);
+    const toks = colorTokens(key);
+    let best = null;
+    SRC_COLOR_RULES.forEach((rule) => rule.words.forEach((w) => {
+      const i = findPhrase(toks, w);
+      if (i < 0) return;
+      const pt = colorTokens(w), n = pt.length, c = pt.join("").length;
+      if (!best || n > best.n || (n === best.n && (i < best.i || (i === best.i && c > best.c)))) best = { rule, n, c, i };
+    }));
+    const out = best ? best.rule : null;
+    if (_srcCache.size > 500) _srcCache.clear();
+    _srcCache.set(key, out);
+    return out;
+  }
+  function relLum(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+    if (!m) return 1;
+    const v = parseInt(m[1], 16), ch = [(v >> 16) & 255, (v >> 8) & 255, v & 255].map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  }
+  function contrastText(bg) { return relLum(bg) > 0.179 ? "#111418" : "#FFFFFF"; }
+  function brandAuto(gr) {
+    const toks = colorTokens((gr.brand || "") + " " + (gr.name || ""));
+    for (const rule of BRAND_COLOR_RULES) for (const k of rule.keys) if (findPhrase(toks, k) >= 0) return rule;
+    return null;
+  }
+  function gearAutoColors(gr) { const a = gr ? brandAuto(gr) : null; return a ? { bg: a.bg, fg: a.fg } : null; }
+  function GearColors(gr) {
+    if (!gr) return null;
+    const auto = gearAutoColors(gr), ov = gr.colorOverride;
+    if (!ov || (!ov.bg && !ov.fg)) return auto;
+    const bg = ov.bg || (auto ? auto.bg : "#FFFFFF");
+    return { bg, fg: ov.fg || (ov.bg ? contrastText(ov.bg) : auto ? auto.fg : "#1B1F24") };
+  }
+  function RowColorInfo(ch) {
+    const rule = ch.rowColor ? null : matchSourceColor(ch.source);
+    const bg = ch.rowColor || (rule ? rule.bg : null);
+    return bg ? { bg, fg: contrastText(bg), name: ch.rowColor ? "Custom color" : rule.name, manual: !!ch.rowColor } : null;
+  }
+  function ColBlank(ch, f) {
+    return f === "source" ? !ch.source : f === "mic" ? !ch.mic : f === "preamp" ? !ch.preamp : f === "outboard" ? !(ch.outboard && ch.outboard.length) : f === "notes" ? !ch.notes : f === "rtn" ? !ch.rtn : f === "status";
+  }
+  function ColorModal({ ch, onPatch, onClose }) {
+    const h = U.createElement, hexOk = (c) => /^#[0-9a-f]{6}$/i.test(c || "");
+    const rc = RowColorInfo(ch), auto = matchSourceColor(ch.source);
+    const lab = { fontSize: 11, fontWeight: 700, color: g.textFaint, letterSpacing: 0.5, textTransform: "uppercase", margin: "0 0 8px" };
+    const card = { background: g.raised, border: `1px solid ${g.hairline}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12 };
+    const pick = (value, onChange, title) => h("input", { type: "color", title, value: hexOk(value) ? value : "#ffffff", onChange: (e) => onChange(e.target.value), style: { width: 40, height: 28, padding: 0, border: `1px solid ${g.hairline}`, borderRadius: 4, background: "none", cursor: "pointer" } });
+    const small = (label, onClick, disabled) => h("button", { onClick: disabled ? undefined : onClick, disabled: !!disabled, style: { background: "transparent", color: g.textDim, border: `1px solid ${g.hairline}`, borderRadius: 6, padding: "4px 10px", fontSize: 11.5, fontWeight: 600, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.45 : 1, whiteSpace: "nowrap" } }, label);
+    const pieces = [["mic", "Mic / DI", ch.mic], ["preamp", "Preamp", ch.preamp], ...(ch.outboard || []).map((it, i) => ["ob" + i, "Insert " + (i + 1), it])].filter((p) => p[2]);
+    const setPiece = (key, piece, patch) => {
+      const next = { ...piece, colorOverride: patch ? { ...(piece.colorOverride || {}), ...patch } : null };
+      if (key === "mic") onPatch(ch.line, { mic: next });
+      else if (key === "preamp") onPatch(ch.line, { preamp: next });
+      else onPatch(ch.line, { outboard: (ch.outboard || []).map((it, i) => ("ob" + i === key ? next : it)) });
+    };
+    const resetAll = () => onPatch(ch.line, { rowColor: null, mic: ch.mic ? { ...ch.mic, colorOverride: null } : ch.mic, preamp: ch.preamp ? { ...ch.preamp, colorOverride: null } : ch.preamp, outboard: (ch.outboard || []).map((it) => ({ ...it, colorOverride: null })) });
+    const anyManual = !!ch.rowColor || pieces.some((p) => p[2].colorOverride && (p[2].colorOverride.bg || p[2].colorOverride.fg));
+    return h(Ba, { title: `Colors \u2014 ${ch.label}${ch.source ? " \u00B7 " + ch.source : ""}`, onClose, width: 520 },
+      h("div", { style: card },
+        h("p", { style: lab }, "Row background"),
+        h("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
+          h("div", { style: { width: 120, height: 28, borderRadius: 6, background: rc ? rc.bg : "transparent", border: `1px ${rc ? "solid" : "dashed"} ${g.hairline}`, color: rc ? rc.fg : g.textFaint, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 } }, rc ? rc.name : "No color"),
+          pick(rc ? rc.bg : "#ffffff", (v) => onPatch(ch.line, { rowColor: v }), "Pick a custom row color"),
+          small("Use automatic", () => onPatch(ch.line, { rowColor: null }), !ch.rowColor)),
+        h("p", { style: { fontSize: 11.5, color: g.textFaint, margin: "8px 0 0" } }, ch.rowColor ? (auto ? `Automatic would be ${auto.name}.` : "No automatic color matches this source.") : auto ? `Automatic: ${auto.name}, from \u201C${ch.source}\u201D.` : ch.source ? `No automatic color matches \u201C${ch.source}\u201D \u2014 pick one if you like.` : "Type a source and the row colors itself, or pick a color here.")),
+      h("div", { style: card },
+        h("p", { style: lab }, "Gear colors"),
+        pieces.length === 0 ? h("p", { style: { fontSize: 11.5, color: g.textFaint, margin: 0 } }, "Add a mic, preamp or insert to this line to color it.") : null,
+        pieces.map(([key, name, piece]) => {
+          const eff = GearColors(piece), ov = piece.colorOverride || {}, au = gearAutoColors(piece), manual = !!(ov.bg || ov.fg);
+          return h("div", { key, style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${g.hairlineSoft}`, flexWrap: "wrap" } },
+            h("div", { style: { width: 150, flexShrink: 0 } },
+              h("div", { style: { fontSize: 10.5, color: g.textFaint } }, name),
+              h("div", { style: { marginTop: 2, padding: "3px 8px", borderRadius: 5, fontSize: 12, fontWeight: 600, background: eff ? eff.bg : "#fff", color: eff ? eff.fg : g.text, border: `1px solid ${g.hairline}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, hv(piece))),
+            h("label", { style: { fontSize: 11, color: g.textDim, display: "flex", alignItems: "center", gap: 6 } }, "Text", pick(eff ? eff.fg : "#111418", (v) => setPiece(key, piece, { fg: v }), "Text color")),
+            h("label", { style: { fontSize: 11, color: g.textDim, display: "flex", alignItems: "center", gap: 6 } }, "Background", pick(eff ? eff.bg : "#ffffff", (v) => setPiece(key, piece, { bg: v }), "Background color")),
+            small("Use automatic", () => setPiece(key, piece, null), !manual),
+            !au && !manual ? h("span", { style: { fontSize: 10.5, color: g.textFaint } }, "no automatic color for this brand") : null);
+        })),
+      h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+        small("Reset everything on this line to automatic", resetAll, !anyManual),
+        h("button", { onClick: onClose, style: { background: g.amber, color: "#1a1204", border: "none", borderRadius: 6, padding: "7px 16px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" } }, "Done")));
+  }
+
+  function Ji(t) { return t ? (t.brand ? `${t.brand} ${t.name}` : t.name) : ""; }
   function hv(t) {
     return t ? (t.brand ? `${t.brand} ${t.name}` : t.name) : "";
   }
@@ -40030,9 +40161,7 @@ This typically indicates that your device does not have a healthy Internet conne
                             gap: 10,
                             padding: "12px 14px",
                             borderBottom: `1px solid ${g.hairlineSoft}`,
-                            background: c ? "#fff" : g.zebra,
-                          },
-                          children: [
+                            background: RowColorInfo(l) ? RowColorInfo(l).bg : c ? "#fff" : g.zebra, }, children: [
                             (0, d.jsxs)("div", {
                               style: {
                                 display: "flex",
@@ -40058,22 +40187,13 @@ This typically indicates that your device does not have a healthy Internet conne
                                 l.source &&
                                   (0, d.jsx)("span", {
                                     style: {
-                                      fontSize: 12,
-                                      color: g.textFaint,
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    },
-                                    children: l.source,
+                                      fontSize: 12, color: RowColorInfo(l) ? RowColorInfo(l).fg : g.textFaint, opacity: RowColorInfo(l) ? 0.85 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", }, children: l.source,
                                   }),
                               ],
                             }),
                             (0, d.jsx)("span", {
                               style: {
-                                fontSize: 13.5,
-                                fontWeight: l.mic ? 600 : 400,
-                                color: l.mic ? g.text : g.textFaint,
-                                textAlign: "right",
+                                fontSize: 13.5, fontWeight: l.mic ? 600 : 400, color: l.mic ? (GearColors(l.mic) ? GearColors(l.mic).fg : RowColorInfo(l) ? RowColorInfo(l).fg : g.text) : RowColorInfo(l) ? RowColorInfo(l).fg : g.textFaint, ...(l.mic && GearColors(l.mic) ? { background: GearColors(l.mic).bg, padding: "3px 9px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.12)" } : {}), textAlign: "right",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -40397,8 +40517,7 @@ This typically indicates that your device does not have a healthy Internet conne
             : rn(Ve);
         } catch {}
     }
-    let mr = n ? Ji(n) : "",
-      Cr = y ? oV(n) : null,
+    let mr = n ? Ji(n) : "", GcX = n ? GearColors(n) : null, Cr = y ? oV(n) : null,
       Yn = W ? w : n ? mr : "",
       Vr = n && o[n.id] && o[n.id].length > (k?.[n.id] ?? 1),
       Ft = n ? (k?.[n.id] ?? 1) : 1;
@@ -40554,11 +40673,7 @@ This typically indicates that your device does not have a healthy Internet conne
                 minHeight: C ? 30 : 34,
                 background: L
                   ? "rgba(232,163,61,0.10)"
-                  : Vr
-                    ? "rgba(255,93,93,0.08)"
-                    : n
-                      ? "#fff"
-                      : "transparent",
+                  : Vr ? "rgba(255,93,93,0.08)" : n ? (GcX ? GcX.bg : "#fff") : "transparent",
                 border: `1.5px dashed ${L ? g.amber : "transparent"}`,
                 outline: `1.5px ${n ? "solid" : "dashed"} ${Vr ? g.red : n ? "#9aa2ab" : "#c3c9d0"}`,
                 boxShadow: Vr
@@ -40591,9 +40706,7 @@ This typically indicates that your device does not have a healthy Internet conne
                     style: {
                       display: "flex",
                       alignItems: "center",
-                      cursor: "grab",
-                      flexShrink: 0,
-                      color: g.textFaint,
+                      cursor: "grab", flexShrink: 0, color: GcX ? GcX.fg : g.textFaint, opacity: GcX ? 0.75 : 1,
                     },
                     children: (0, d.jsx)(tl, { size: 13 }),
                   }),
@@ -40619,9 +40732,7 @@ This typically indicates that your device does not have a healthy Internet conne
                     background: "transparent",
                     border: "none",
                     outline: "none",
-                    color: g.text,
-                    fontSize: C ? 12 : 13,
-                    fontWeight: n && !W ? 500 : 400,
+                    color: GcX ? GcX.fg : g.text, fontSize: C ? 12 : 13, fontWeight: n && !W ? 500 : 400,
                     fontFamily: g.sans,
                     padding: 0,
                   },
@@ -40685,12 +40796,7 @@ This typically indicates that your device does not have a healthy Internet conne
                   }),
                 n &&
                   !W &&
-                  (0, d.jsx)(Do, {
-                    size: 13,
-                    color: g.textFaint,
-                    onClick: (q) => {
-                      (q.stopPropagation(), i());
-                    },
+                  (0, d.jsx)(Do, { size: 13, color: GcX ? GcX.fg : g.textFaint, onClick: (q) => { (q.stopPropagation(), i()); },
                     style: { cursor: "pointer", flexShrink: 0 },
                   }),
                 !W &&
@@ -41210,8 +41316,7 @@ This typically indicates that your device does not have a healthy Internet conne
         },
         children: [
           e.map((I, T) => {
-            let k = C?.[I.id] ?? 1,
-              V = s[I.id] && s[I.id].length > k;
+            let k = C?.[I.id] ?? 1, V = s[I.id] && s[I.id].length > k, GcC = GearColors(I);
             return (0, d.jsxs)(
               "div",
               {
@@ -41247,26 +41352,13 @@ This typically indicates that your device does not have a healthy Internet conne
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
-                  background: V ? "rgba(255,93,93,0.08)" : g.panel2,
-                  border: `1.5px solid ${V ? g.red : g.hairline}`,
+                  background: V ? "rgba(255,93,93,0.08)" : GcC ? GcC.bg : g.panel2, border: `1.5px solid ${V ? g.red : g.hairline}`,
                   boxShadow: V ? "0 0 0 3px rgba(255,93,93,0.16)" : "none",
                   borderRadius: 5,
-                  padding: "4px 7px",
-                  fontSize: 11.5,
-                  color: g.text,
-                  cursor: "grab",
+                  padding: "4px 7px", fontSize: 11.5, color: GcC ? GcC.fg : g.text, cursor: "grab",
                 },
                 children: [
-                  (0, d.jsx)(tl, { size: 11, color: g.textFaint }),
-                  (0, d.jsx)("span", {
-                    style: {
-                      fontFamily: g.mono,
-                      color: g.amber,
-                      fontSize: 10,
-                      width: 14,
-                    },
-                    children: T + 1,
-                  }),
+                  (0, d.jsx)(tl, { size: 11, color: GcC ? GcC.fg : g.textFaint }), (0, d.jsx)("span", { style: { fontFamily: g.mono, color: GcC ? GcC.fg : g.amber, opacity: GcC ? 0.8 : 1, fontSize: 10, width: 14, }, children: T + 1, }),
                   (0, d.jsx)("span", { style: { flex: 1 }, children: Ji(I) }),
                   I.adHoc &&
                     (0, d.jsx)("span", {
@@ -41307,12 +41399,7 @@ This typically indicates that your device does not have a healthy Internet conne
                         ")",
                       ],
                     }),
-                  (0, d.jsx)(Do, {
-                    size: 11,
-                    color: g.textFaint,
-                    style: { cursor: "pointer" },
-                    onClick: () => r(T),
-                  }),
+                  (0, d.jsx)(Do, { size: 11, color: GcC ? GcC.fg : g.textFaint, style: { cursor: "pointer" }, onClick: () => r(T), }),
                 ],
               },
               I.id + T,
@@ -41363,7 +41450,7 @@ This typically indicates that your device does not have a healthy Internet conne
       {
         id: "mic",
         label: "Mic / DI",
-        defaultWidth: 220,
+        defaultWidth: 270,
         minWidth: 120,
         hideable: !0,
       },
@@ -41405,8 +41492,7 @@ This typically indicates that your device does not have a healthy Internet conne
       {
         id: "actions",
         label: "",
-        defaultWidth: 58,
-        minWidth: 58,
+        defaultWidth: 126, minWidth: 126,
         hideable: !1,
       },
     ];
@@ -41446,10 +41532,9 @@ This typically indicates that your device does not have a healthy Internet conne
     gridTemplate: gr,
     onDragPassOver: ci,
     onSetStatus: bn,
-    onMoveRowSelection: Rn,
-  }) {
+    onMoveRowSelection: Rn, onOpenColors: OpenColorsFn, }) {
     let je = Fr(t),
-      $i = bh[t.lineStatus],
+      $i = bh[t.lineStatus], RCI = RowColorInfo(t),
       rn = (0, U.useRef)(null),
       Lt = (0, U.useRef)(null),
       sn = (0, U.useRef)(null),
@@ -41488,8 +41573,7 @@ This typically indicates that your device does not have a healthy Internet conne
         outline: ie ? `3px solid ${g.amber}` : "3px solid transparent",
         outlineOffset: 2,
         borderRadius: 8,
-        background: xe && !ie ? "rgba(232,163,61,0.10)" : "transparent",
-        boxShadow: ie
+        background: xe && !ie ? "rgba(232,163,61,0.10)" : RCI && ColBlank(t, re) ? "rgba(255,255,255,0.84)" : "transparent", boxShadow: ie
           ? "0 0 0 5px rgba(232,163,61,0.22), 0 0 14px rgba(232,163,61,0.35)"
           : "none",
         transition: "outline-color 0.1s ease, box-shadow 0.1s ease",
@@ -41809,11 +41893,7 @@ This typically indicates that your device does not have a healthy Internet conne
           return (0, d.jsxs)(
             "div",
             {
-              "data-line-select": !0,
-              style: { display: "flex", justifyContent: "center", gap: 4 },
-              children: [
-                (0, d.jsx)(Ot, {
-                  icon: t.stereoLink ? gT : pT,
+              "data-line-select": !0, style: { display: "flex", justifyContent: "center", gap: 4, ...(RCI ? { background: "rgba(255,255,255,0.84)", borderRadius: 7, padding: "1px 2px" } : {}) }, children: [ (0, d.jsx)(Ot, { icon: PaletteIcon, size: 13, title: "Colors for this line (row, mic, preamp, inserts)", onClick: () => OpenColorsFn?.(t.line), active: !!(t.rowColor || (t.mic && t.mic.colorOverride) || (t.preamp && t.preamp.colorOverride) || (t.outboard || []).some((o2) => o2 && o2.colorOverride)) }), (0, d.jsx)(Ot, { icon: t.stereoLink ? gT : pT,
                   size: 13,
                   title: "Link stereo (Cmd/Ctrl+L)",
                   onClick: () => h(t.line),
@@ -41853,16 +41933,9 @@ This typically indicates that your device does not have a healthy Internet conne
       className: s ? "flash-in" : "",
       style: {
         display: "grid", gridTemplateColumns: gr, scrollMarginTop: 56, scrollMarginBottom: 12, gap: 10, alignItems: "start", padding: "10px 12px",
-        background:
-          C === t.line
-            ? "rgba(232,163,61,0.10)"
-            : k
-              ? "rgba(232,163,61,0.14)"
-              : s
-                ? g.panel2
-                : je
-                  ? "#fff"
-                  : g.zebra,
+        background: RCI ? RCI.bg : C === t.line ? "rgba(232,163,61,0.10)" : k ? "rgba(232,163,61,0.14)" : s ? g.panel2 : je ? "#fff" : g.zebra,
+        boxShadow: RCI ? (C === t.line || k ? "inset 0 0 0 999px rgba(232,163,61,0.30)" : s ? "inset 0 0 0 999px rgba(255,255,255,0.16)" : "none") : "none",
+        color: RCI ? RCI.fg : void 0,
         borderBottom: `1px solid ${g.hairlineSoft}`,
         borderLeft:
           k || t.stereoLink ? `3px solid ${g.amber}` : "3px solid transparent",
@@ -45438,7 +45511,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
     e.current === null && (e.current = tV() || {});
     let n = e.current,
       [r, i] = (0, U.useState)(() => n.meta || SeedName(kV())),
-      [s, o] = (0, U.useState)(() => n.channels || YM()),
+      [s, o] = (0, U.useState)(() => (n.channels ? Ip(n.channels) || n.channels : YM())),
       [a, l] = (0, U.useState)(() => n.inserts || []),
       [c, h] = (0, U.useState)(() => n.gearOverrides || {}),
       [f, m] = (0, U.useState)(
@@ -45849,17 +45922,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
           K.has(ee.line)
             ? {
                 ...ee,
-                source: "",
-                mic: null,
-                preamp: null,
-                outboard: [],
-                dawIn: ee.line,
-                phantomLock: null,
-                phantomState: "OFF",
-                lineStatus: Wi.UNCHECKED,
-                notes: "",
-                updatedAt: dn(),
-              }
+                source: "", mic: null, preamp: null, outboard: [], dawIn: ee.line, phantomLock: null, phantomState: "OFF", lineStatus: Wi.UNCHECKED, notes: "", rowColor: null, updatedAt: dn(), }
             : ee,
         ),
       ),
@@ -46064,10 +46127,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
             mic: gn.mic,
             preamp: gn.preamp,
             outboard: gn.outboard,
-            phantomLock: gn.phantomLock,
-            phantomState: gn.phantomState,
-          });
-        });
+            phantomLock: gn.phantomLock, phantomState: gn.phantomState, rowColor: gn.rowColor || null, }); });
         let On = new Set(Q),
           tr = new Set(Ee),
           io = Ee.filter((tt) => !On.has(tt) && Fr(qr.get(tt)));
@@ -46087,14 +46147,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
             : On.has(tt.line) && !tr.has(tt.line)
               ? {
                   ...tt,
-                  source: "",
-                  mic: null,
-                  preamp: null,
-                  outboard: [],
-                  phantomLock: null,
-                  phantomState: "OFF",
-                  updatedAt: dn(),
-                }
+                  source: "", mic: null, preamp: null, outboard: [], phantomLock: null, phantomState: "OFF", rowColor: null, updatedAt: dn(), }
               : tt;
         });
       }),
@@ -46341,7 +46394,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
     function Up(v) {
       hi((F) => F.filter((K) => K.id !== v));
     }
-    let hubIdxRef = (0, U.useRef)(null),
+    let [colorLine, setColorLine] = (0, U.useState)(null), hubIdxRef = (0, U.useRef)(null),
       hubSigRef = (0, U.useRef)(""),
       hubTimeRef = (0, U.useRef)(0), hubWriter = (0, U.useRef)(Yl()), hubApplied = (0, U.useRef)(null),
       [hubCloud, setHubCloud] = (0, U.useState)([]),
@@ -46712,7 +46765,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                                               jt.has(v.line) ||
                                               !!fa?.lines.includes(v.line),
                                             onSetStatus: Ea,
-                                            onMoveRowSelection: uu,
+                                            onMoveRowSelection: uu, onOpenColors: setColorLine,
                                             onToggleGroupSelect: lu,
                                             onClearRow: kp,
                                             selectionRect: Bu,
@@ -46803,8 +46856,8 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                 onApplyTemplate: jr,
                 onDeleteTemplate: Up,
               }),
-            lt === "activity" &&
-              (0, d.jsx)(bV, { onClose: () => re(null), activityLog: xn }),
+            lt === "activity" && (0, d.jsx)(bV, { onClose: () => re(null), activityLog: xn }),
+            colorLine != null && s.find((c2) => c2.line === colorLine) && (0, d.jsx)(ColorModal, { ch: s.find((c2) => c2.line === colorLine), onPatch: Np, onClose: () => setColorLine(null) }),
             lt === "sessions" &&
               (0, d.jsx)(SessionHub, { onClose: () => re(null), sessionId: Qi, sessionName: r.sessionName, connStatus: bp, totalLines: Lr, activeCount: s.filter(Fr).length, cloudSessions: hubCloud, cloudReady: hubReady, snapshots: ie, templates: Ye, copied: xh, onCopyLink: eu, onRename: (v) => i((F) => ({ ...F, sessionName: v })), onNewSession: hubNew, onOpenSession: hubOpen, onHideSession: hubHide, onSaveSnapshot: (v) => hubSnap(v, !1), onDeleteSnapshot: Mp, onRestoreSnapshot: hubRestore, onSaveTemplate: Vp, onApplyTemplate: hubApplyTpl, onDeleteTemplate: Up, onClearSheet: hubClear, onExport: wa, onImport: () => fu.current?.click() }),
             !pn && (0, d.jsx)(AV, { onSet: Mr }),
@@ -46941,7 +46994,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-04 15:33 UTC";
+  var GV = "2026-10-04 20:14 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
