@@ -39778,13 +39778,15 @@ This typically indicates that your device does not have a healthy Internet conne
   // tolerates a trailing "s", and the longest/leftmost phrase wins ("Synth Bass"
   // is Bass, not Keys; "Bass Drum" is Drums, not Bass).
   var SRC_COLOR_RULES = [
-    { name: "Guitars", bg: "#2F9E5B", words: ["guitar", "gtr", "ac", "e gtr", "a gtr"] },
-    { name: "Bass", bg: "#2E6BDB", words: ["bass", "e bass", "synth bass"] },
-    { name: "Keys", bg: "#A83279", words: ["keys", "nord", "synth", "moog", "mini", "model d", "mellotron", "melotron", "melo", "mello", "obx", "obx8", "ob6", "prophet", "p5", "p10"] },
-    { name: "Drums", bg: "#7C4DCC", words: ["drums", "kit", "kick", "kick in", "kick out", "snare", "snr", "snare top", "snare bottom", "snare btm", "snr top", "snr btm", "tom", "floor", "rack", "hat", "overhead", "overheads", "oh", "ohs", "bass drum"] },
-    { name: "Brass / Horns", bg: "#E8832A", words: ["trumpet", "trump", "horn", "sax"] },
-    { name: "Woods", bg: "#8A5A33", words: ["wood", "woods", "clarinet", "flute", "flt", "clar"] },
-    { name: "Piano", bg: "#1E1E22", words: ["piano", "pno"] },
+    { name: "Guitars", bg: "#2F9E5B", words: ["guitar", "gtr", "gt", "ac", "acoustic", "e gtr", "a gtr", "ac gtr", "elec gtr", "electric guitar", "electric gtr", "amp", "cab", "banjo", "mandolin", "uke", "ukulele", "dobro", "steel", "pedal steel"] },
+    { name: "Bass", bg: "#2E6BDB", words: ["bass", "e bass", "synth bass", "bass guitar", "acoustic bass", "upright bass", "double bass", "dbl bass"] },
+    { name: "Keys", bg: "#A83279", words: ["keys", "key", "keyboard", "kb", "kbd", "nord", "synth", "moog", "mini", "mini moog", "model d", "mellotron", "melotron", "melo", "mello", "obx", "obx8", "ob6", "prophet", "p5", "p10", "rhodes", "wurli", "wurlitzer", "organ", "b3", "hammond", "clav", "clavinet", "juno", "jupiter", "oberheim", "sequential", "arp", "electric piano", "e piano", "ep"] },
+    { name: "Drums", bg: "#7C4DCC", words: ["drums", "drum", "kit", "kick", "kick in", "kick out", "sub kick", "kick sub", "snare", "snr", "sn", "snare top", "snare bottom", "snare btm", "snare bot", "snr top", "snr btm", "snr bot", "tom", "floor", "rack", "hat", "hi hat", "hihat", "hh", "overhead", "overheads", "oh", "ohs", "ovh", "ovhd", "bass drum", "bd", "sd", "ride", "cymbal", "crash", "perc", "percussion", "conga", "bongo", "shaker", "tambourine", "tamb", "cajon", "djembe", "cowbell", "timbale"] },
+    { name: "Brass / Horns", bg: "#E8832A", words: ["trumpet", "trump", "tpt", "trpt", "horn", "sax", "saxophone", "trombone", "tbn", "tbone", "bone", "tuba", "brass", "flugel", "flugelhorn", "bari"] },
+    { name: "Woods", bg: "#8A5A33", words: ["wood", "woods", "woodwind", "clarinet", "flute", "flt", "clar", "oboe", "bassoon", "bsn", "piccolo", "picc", "recorder", "english horn", "eng horn", "bass clarinet", "alto flute"] },
+    { name: "Piano", bg: "#1E1E22", words: ["piano", "pno", "grand", "grand piano", "baby grand", "upright piano", "acoustic piano"] },
+    { name: "Vocals", bg: "#F2C230", words: ["vox", "vocal", "vocals", "voc", "vocs", "lead vox", "lead vocal", "lead vocals", "lv", "main vox", "singer"] },
+    { name: "Background Vocals", bg: "#E8832A", words: ["bv", "bvs", "bvox", "bgv", "bgvs", "bg vox", "bg vocal", "bg vocals", "bgd vox", "bk vox", "bkg vox", "background vox", "background vocal", "background vocals", "backing vox", "backing vocal", "backing vocals", "harmony", "harmonies", "harm", "gang vox", "choir"] },
   ];
   // Gear: matched on brand or model. fg = text color, bg = field background.
   var BRAND_COLOR_RULES = [
@@ -39819,11 +39821,27 @@ This typically indicates that your device does not have a healthy Internet conne
   function colorTokens(s) {
     return String(s || "").toLowerCase().replace(/([a-z])(\d)/g, "$1 $2").replace(/(\d)([a-z])/g, "$1 $2").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
   }
-  function tokEq(a, b) { return a === b || a === b + "s" || b === a + "s"; }
-  function findPhrase(toks, phrase) {
+  function oneEdit(a, b) {
+    if (a === b) return !0;
+    if (Math.abs(a.length - b.length) > 1) return !1;
+    let i = 0, j = 0, edits = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++edits > 1) return !1;
+      if (a.length > b.length) i++; else if (a.length < b.length) j++; else { i++; j++; }
+    }
+    return edits + (a.length - i) + (b.length - j) <= 1;
+  }
+  // Words of 6+ letters tolerate one typo ("guiter", "overheds", "trumpt"); shorter words never do,
+  // so something like "Spare" can't be mistaken for "Snare".
+  function tokEq(a, b, fuzzy) {
+    if (a === b || a === b + "s" || b === a + "s") return !0;
+    return !!fuzzy && a.length >= 6 && b.length >= 6 && /^[a-z]+$/.test(a) && /^[a-z]+$/.test(b) && oneEdit(a, b);
+  }
+  function findPhrase(toks, phrase, fuzzy) {
     const pt = colorTokens(phrase);
     if (!pt.length) return -1;
-    for (let i = 0; i + pt.length <= toks.length; i++) if (pt.every((x, j) => tokEq(toks[i + j], x))) return i;
+    for (let i = 0; i + pt.length <= toks.length; i++) if (pt.every((x, j) => tokEq(toks[i + j], x, fuzzy))) return i;
     return -1;
   }
   var _srcCache = new Map();
@@ -39831,13 +39849,18 @@ This typically indicates that your device does not have a healthy Internet conne
     const key = String(text || "");
     if (_srcCache.has(key)) return _srcCache.get(key);
     const toks = colorTokens(key);
+    // Exact (whole-word) matches always win; typo-tolerant matching is only a fallback when
+    // nothing matches exactly, so "Clarinet" is never mistaken for "Clavinet".
     let best = null;
-    SRC_COLOR_RULES.forEach((rule) => rule.words.forEach((w) => {
-      const i = findPhrase(toks, w);
-      if (i < 0) return;
-      const pt = colorTokens(w), n = pt.length, c = pt.join("").length;
-      if (!best || n > best.n || (n === best.n && (i < best.i || (i === best.i && c > best.c)))) best = { rule, n, c, i };
-    }));
+    for (const fuzzy of [!1, !0]) {
+      SRC_COLOR_RULES.forEach((rule) => rule.words.forEach((w) => {
+        const i = findPhrase(toks, w, fuzzy);
+        if (i < 0) return;
+        const pt = colorTokens(w), n = pt.length, c = pt.join("").length;
+        if (!best || n > best.n || (n === best.n && (i < best.i || (i === best.i && c > best.c)))) best = { rule, n, c, i };
+      }));
+      if (best) break;
+    }
     const out = best ? best.rule : null;
     if (_srcCache.size > 500) _srcCache.clear();
     _srcCache.set(key, out);
@@ -39912,6 +39935,37 @@ This typically indicates that your device does not have a healthy Internet conne
       h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
         small("Reset everything on this line to automatic", resetAll, !anyManual),
         h("button", { onClick: onClose, style: { background: g.amber, color: "#1a1204", border: "none", borderRadius: 6, padding: "7px 16px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" } }, "Done")));
+  }
+
+  // ---- export / print sheets ---------------------------------------------------
+  var EX_EXACT = { WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" };
+  function ExT(l, extra) {
+    const rc = l && RowColorInfo(l);
+    return { ...Pt, ...EX_EXACT, ...(rc ? { background: rc.bg, color: rc.fg } : {}), ...(extra || {}) };
+  }
+  function ExG(l, gear) {
+    const gc = gear ? GearColors(gear) : null;
+    return gc ? { ...ExT(l), background: gc.bg, color: gc.fg, fontWeight: 600 } : ExT(l);
+  }
+  function ExChain(l, items) {
+    const h = U.createElement;
+    if (!items || !items.length) return "\u2014";
+    const out = [];
+    items.forEach((it, i) => {
+      const gc = GearColors(it);
+      if (i) out.push(h("span", { key: "a" + i, style: { opacity: 0.7, margin: "0 3px" } }, "\u2192"));
+      out.push(h("span", { key: "c" + i, style: { display: "inline-block", padding: "1px 6px", borderRadius: 4, margin: "1px 0", ...EX_EXACT, ...(gc ? { background: gc.bg, color: gc.fg, fontWeight: 600, border: "1px solid rgba(0,0,0,0.25)" } : {}) } }, hv(it)));
+    });
+    return out;
+  }
+  function ExLegend({ channels }) {
+    const h = U.createElement, seen = new Map();
+    channels.forEach((c) => { const rc = RowColorInfo(c); if (rc) { const k = rc.manual ? "Custom colors" : rc.name; if (!seen.has(k)) seen.set(k, rc.bg); } });
+    if (!seen.size) return null;
+    return h("div", { style: { display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", margin: "0 0 10px", fontSize: 10.5, color: "#444", fontFamily: g.sans } },
+      h("span", { style: { fontWeight: 700 } }, "Row colors:"),
+      Array.from(seen.entries()).map(([name, bg]) => h("span", { key: name, style: { display: "inline-flex", alignItems: "center", gap: 5 } },
+        h("span", { style: { width: 12, height: 12, borderRadius: 3, background: bg, border: "1px solid rgba(0,0,0,0.3)", ...EX_EXACT } }), name)));
   }
 
   function Ji(t) { return t ? (t.brand ? `${t.brand} ${t.name}` : t.name) : ""; }
@@ -40250,8 +40304,7 @@ This typically indicates that your device does not have a healthy Internet conne
       @media print {
         body * { visibility: hidden; }
         #print-root, #print-root * { visibility: visible; }
-        #print-root { position: absolute; left: 0; top: 0; width: 100%; }
-      }
+        #print-root { position: absolute; left: 0; top: 0; width: 100%; } } #print-root, #print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     `,
     });
   }
@@ -44133,12 +44186,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                       : "Session JSON Backup",
               }),
               r === "patchbay" &&
-                (0, d.jsxs)(d.Fragment, {
-                  children: [
-                    (0, d.jsxs)("h3", {
-                      style: av,
-                      children: [
-                        "Tracking Channels (",
+                (0, d.jsxs)(d.Fragment, { children: [ (0, d.jsx)(ExLegend, { channels: s }), (0, d.jsxs)("h3", { style: av, children: [ "Tracking Channels (",
                         s.length,
                         " active tie lines)",
                       ],
@@ -44168,50 +44216,27 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                               "tr",
                               {
                                 children: [
-                                  (0, d.jsxs)("td", {
-                                    style: Pt,
-                                    children: [
-                                      l.label,
-                                      l.stereoLink
-                                        ? ` (${l.stereoLink.role})`
-                                        : "",
-                                    ],
+                                  (0, d.jsxs)("td", { style: ExT(l, { fontWeight: 700 }), children: [ l.label, l.stereoLink ? ` (${l.stereoLink.role})` : "", ], }),
+                                  (0, d.jsx)("td", {
+                                    style: ExT(l, { fontWeight: 600 }), children: l.source || "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: l.source || "\u2014",
+                                    style: ExG(l, l.mic), children: l.mic ? Ji(l.mic) : "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: l.mic ? Ji(l.mic) : "\u2014",
+                                    style: ExG(l, l.preamp), children: l.preamp ? Ji(l.preamp) : "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: l.preamp
-                                      ? Ji(l.preamp)
-                                      : "\u2014",
+                                    style: ExT(l), children: ExChain(l, l.outboard),
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: zR(l.outboard),
+                                    style: ExT(l), children: l.dawIn ? `IN ${l.dawIn}` : "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: l.dawIn
-                                      ? `IN ${l.dawIn}`
-                                      : "\u2014",
+                                    style: ExT(l), children: l.phantomLock === "REQUIRED" || l.phantomState === "ON" ? "ON" : "OFF",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children:
-                                      l.phantomLock === "REQUIRED" ||
-                                      l.phantomState === "ON"
-                                        ? "ON"
-                                        : "OFF",
-                                  }),
-                                  (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: bh[l.lineStatus].label,
+                                    style: ExT(l, RowColorInfo(l) ? { background: "#fff", color: "#222" } : {}), children: bh[l.lineStatus].label,
                                   }),
                                 ],
                               },
@@ -44273,8 +44298,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                                     children: l.destination || "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: zR(l.outboard),
+                                    style: ExT(l), children: ExChain(l, l.outboard),
                                   }),
                                   (0, d.jsx)("td", {
                                     style: Pt,
@@ -44288,8 +44312,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                                         .join(", ") || "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: bh[l.lineStatus].label,
+                                    style: ExT(l, RowColorInfo(l) ? { background: "#fff", color: "#222" } : {}), children: bh[l.lineStatus].label,
                                   }),
                                 ],
                               },
@@ -44304,10 +44327,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
               r === "floortech" &&
                 (0, d.jsxs)(d.Fragment, {
                   children: [
-                    (0, d.jsx)("h3", {
-                      style: av,
-                      children: "Floor Tech Sheet \u2014 Line Check Reference",
-                    }),
+                    (0, d.jsx)("h3", { style: av, children: "Floor Tech Sheet \u2014 Line Check Reference", }), (0, d.jsx)(ExLegend, { channels: s }),
                     (0, d.jsxs)("table", {
                       style: lv,
                       children: [
@@ -44330,25 +44350,15 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                               "tr",
                               {
                                 children: [
+                                  (0, d.jsx)("td", { style: ExT(l, { fontWeight: 700 }), children: l.label, }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: l.label,
+                                    style: ExT(l, { fontWeight: 600 }), children: l.source || "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: l.source || "\u2014",
+                                    style: ExG(l, l.mic), children: l.mic ? Ji(l.mic) : "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: Pt,
-                                    children: l.mic ? Ji(l.mic) : "\u2014",
-                                  }),
-                                  (0, d.jsx)("td", {
-                                    style: {
-                                      ...Pt,
-                                      color: c.color,
-                                      fontWeight: 700,
-                                    },
-                                    children: c.label,
+                                    style: { ...ExT(l), ...(RowColorInfo(l) ? { background: "#fff" } : {}), color: c.color, fontWeight: 700, }, children: c.label,
                                   }),
                                 ],
                               },
@@ -46994,7 +47004,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-04 20:14 UTC";
+  var GV = "2026-10-04 20:25 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
