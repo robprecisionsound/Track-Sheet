@@ -39482,7 +39482,7 @@ This typically indicates that your device does not have a healthy Internet conne
       ...Qe("500 Delay", "Moog", 2),
       { name: "Clusterflux", brand: "Moog" },
       ...Qe("2254", "Neve", 2),
-      { name: "33609/N", brand: "Neve" },
+      { name: "33609/N", brand: "Neve", stereo: !0 },
       { name: "BassRig Sup Vint", brand: "Origin" },
       { name: "Cali 76", brand: "Origin Effects" },
       { name: "Cali76 Bass", brand: "Origin Effects" },
@@ -43744,8 +43744,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
     onRemoveCustomGear: a,
     customGear: l,
   }) {
-    let [c, h] = (0, U.useState)("mic"),
-      [f, m] = (0, U.useState)(""),
+    let [c, h] = (0, U.useState)("mic"), [SF, setSF] = (0, U.useState)("ALL"), [f, m] = (0, U.useState)(""),
       [C, y] = (0, U.useState)("ALL"),
       G = { mic: r, preamp: i, outboard: s }[c],
       I = (0, U.useMemo)(() => $R(G, f, 500), [G, f]),
@@ -43763,12 +43762,24 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
         ].filter((N) => _.has(N));
       }, [c, G]),
       k = (0, U.useMemo)(
-        () =>
-          c !== "mic" || C === "ALL"
-            ? I
-            : I.filter((_) => GR(_.category) === C),
-        [I, c, C],
+        () => {
+          const r0 = c !== "mic" || C === "ALL" ? I : I.filter((_) => GR(_.category) === C);
+          return SF === "STEREO" ? r0.filter((x) => (x.channels ?? 1) >= 2) : SF === "MONO" ? r0.filter((x) => (x.channels ?? 1) < 2) : r0;
+        },
+        [I, c, C, SF],
       );
+    // Stereo-ness is a property of the MODEL, so switching one unit of a numbered group
+    // ("API 225L #1") switches every unit of that model together.
+    function toggleStereo(_) {
+      const base = (nm) => String(nm).replace(/ #\d+$/, ""),
+        next = (_.channels ?? 1) >= 2 ? 1 : 2,
+        group = G.filter((x) => x.brand === _.brand && base(x.name) === base(_.name));
+      e((L) => { const o2 = { ...L }; group.forEach((x) => { o2[x.id] = { ...o2[x.id], channels: next }; }); return o2; });
+    }
+    function groupSize(_) {
+      const base = (nm) => String(nm).replace(/ #\d+$/, "");
+      return G.filter((x) => x.brand === _.brand && base(x.name) === base(_.name)).length;
+    }
     function V(_) {
       return t[_]?.status || "OK";
     }
@@ -43866,21 +43877,11 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
             }),
           ],
         }),
-        c === "mic" &&
-          T.length > 1 &&
-          (0, d.jsxs)("div", {
-            style: {
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 6,
-              marginBottom: 12,
-            },
-            children: [
-              (0, d.jsx)(fn, {
-                active: C === "ALL",
-                onClick: () => y("ALL"),
-                children: "All Types",
-              }),
+        (0, d.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12, alignItems: "center" }, children: [
+          (0, d.jsx)("span", { style: { fontSize: 11, fontWeight: 700, color: g.textFaint, letterSpacing: 0.4, marginRight: 2 }, children: "SHOW" }),
+          [["ALL", "All"], ["STEREO", "Stereo only"], ["MONO", "Mono only"]].map(([id, lb]) => (0, d.jsx)(fn, { active: SF === id, onClick: () => setSF(id), children: lb }, id)),
+        ] }),
+        c === "mic" && T.length > 1 && (0, d.jsxs)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12, }, children: [ (0, d.jsx)(fn, { active: C === "ALL", onClick: () => y("ALL"), children: "All Types", }),
               T.map((_) =>
                 (0, d.jsx)(
                   fn,
@@ -43980,14 +43981,21 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                               style: { fontSize: 10 },
                               children: ["IN USE \xB7 ", N.join(", ")],
                             }),
-                          (0, d.jsxs)("div", {
+                          (0, d.jsx)("button", {
+                            "data-stereo-toggle": !0,
+                            onClick: () => toggleStereo(_),
+                            title: (_.channels ?? 1) >= 2
+                              ? `Stereo: one unit covers two channels, so using it on two tie lines is NOT flagged as a conflict. Click to make it mono.${groupSize(_) > 1 ? ` (Applies to all ${groupSize(_)} units of this model.)` : ""}`
+                              : `Mono: one unit covers one channel, so using it on two tie lines IS flagged. Click to make it stereo.${groupSize(_) > 1 ? ` (Applies to all ${groupSize(_)} units of this model.)` : ""}`,
                             style: {
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
+                              padding: "5px 9px", borderRadius: 6, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3, cursor: "pointer", minWidth: 62,
+                              border: `1px solid ${(_.channels ?? 1) >= 2 ? g.blue : g.hairline}`,
+                              background: (_.channels ?? 1) >= 2 ? "rgba(47,111,176,0.12)" : "transparent",
+                              color: (_.channels ?? 1) >= 2 ? g.blue : g.textFaint,
                             },
-                            title:
-                              "How many of this exact item the studio owns \u2014 used-more-than-this-many triggers the red conflict flag",
+                            children: (_.channels ?? 1) >= 2 ? "STEREO" : "MONO",
+                          }),
+                          (0, d.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 4, }, title: "How many of this exact item the studio owns \u2014 used-more-than-this-many triggers the red conflict flag",
                             children: [
                               (0, d.jsx)("span", {
                                 style: {
@@ -45722,29 +45730,17 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       nu = (0, U.useRef)(null),
       ga = (0, U.useMemo)(
         () =>
-          [...qR, ...f.mic].map((v) => ({
-            ...v,
-            status: c[v.id]?.status || "OK",
-            qty: c[v.id]?.qty ?? v.qty ?? 1,
-          })),
+          [...qR, ...f.mic].map((v) => ({ ...v, status: c[v.id]?.status || "OK", qty: c[v.id]?.qty ?? v.qty ?? 1, channels: c[v.id]?.channels ?? v.channels ?? 1, })),
         [c, f.mic],
       ),
       yr = (0, U.useMemo)(
         () =>
-          [...KR, ...f.preamp].map((v) => ({
-            ...v,
-            status: c[v.id]?.status || "OK",
-            qty: c[v.id]?.qty ?? v.qty ?? 1,
-          })),
+          [...KR, ...f.preamp].map((v) => ({ ...v, status: c[v.id]?.status || "OK", qty: c[v.id]?.qty ?? v.qty ?? 1, channels: c[v.id]?.channels ?? v.channels ?? 1, })),
         [c, f.preamp],
       ),
       Ys = (0, U.useMemo)(
         () =>
-          [...Tp, ...f.outboard].map((v) => ({
-            ...v,
-            status: c[v.id]?.status || "OK",
-            qty: c[v.id]?.qty ?? v.qty ?? 1,
-          })),
+          [...Tp, ...f.outboard].map((v) => ({ ...v, status: c[v.id]?.status || "OK", qty: c[v.id]?.qty ?? v.qty ?? 1, channels: c[v.id]?.channels ?? v.channels ?? 1, })),
         [c, f.outboard],
       ),
       Nh = (0, U.useMemo)(() => {
@@ -47030,7 +47026,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-05 05:06 UTC";
+  var GV = "2026-10-05 05:10 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
