@@ -39773,10 +39773,10 @@ This typically indicates that your device does not have a healthy Internet conne
   }
     var PaletteIcon = Te('<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" /> <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /> <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /> <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /> <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />');
   // ---- automatic color coding ------------------------------------------------
-  // Sources: the row's background comes from whichever category the Source text
-  // matches. Matching is by whole words (so "OH L", "Gtr2", "Snare Top" all work),
-  // tolerates a trailing "s", and the longest/leftmost phrase wins ("Synth Bass"
-  // is Bass, not Keys; "Bass Drum" is Drums, not Bass).
+  // SOURCES: only the Source field is colored (never the row). The category comes from the
+  // Source text, matched by whole words ("OH L", "Gtr2", "Pno-L" all work), tolerating a
+  // trailing "s" and, for long words, one typo. The longest/leftmost phrase wins
+  // ("Synth Bass" is Bass, "Background Vox" is Background Vocals, not Vocals).
   var SRC_COLOR_RULES = [
     { name: "Guitars", bg: "#2F9E5B", words: ["guitar", "gtr", "gt", "ac", "acoustic", "e gtr", "a gtr", "ac gtr", "elec gtr", "electric guitar", "electric gtr", "amp", "cab", "banjo", "mandolin", "uke", "ukulele", "dobro", "steel", "pedal steel"] },
     { name: "Bass", bg: "#2E6BDB", words: ["bass", "e bass", "synth bass", "bass guitar", "acoustic bass", "upright bass", "double bass", "dbl bass"] },
@@ -39788,19 +39788,20 @@ This typically indicates that your device does not have a healthy Internet conne
     { name: "Vocals", bg: "#F2C230", words: ["vox", "vocal", "vocals", "voc", "vocs", "lead vox", "lead vocal", "lead vocals", "lv", "main vox", "singer"] },
     { name: "Background Vocals", bg: "#E8832A", words: ["bv", "bvs", "bvox", "bgv", "bgvs", "bg vox", "bg vocal", "bg vocals", "bgd vox", "bk vox", "bkg vox", "background vox", "background vocal", "background vocals", "backing vox", "backing vocal", "backing vocals", "harmony", "harmonies", "harm", "gang vox", "choir"] },
   ];
-  // Gear: matched on brand or model. fg = text color, bg = field background.
+  // GEAR: matched on brand or model. bg = field background, fg = text.
+  // Royal blue is a clean blue (hue ~218) -- the CSS "royalblue" leans purple.
   var BRAND_COLOR_RULES = [
-    { keys: ["api"], bg: "#4169E1", fg: "#FFFFFF" },
-    { keys: ["manley"], bg: "#16255A", fg: "#FFFFFF" },
+    { keys: ["api"], bg: "#1A5ED6", fg: "#FFFFFF" },
+    { keys: ["manley"], bg: "#0F2A5E", fg: "#FFFFFF" },
     { keys: ["bock"], bg: "#9FE3BE", fg: "#111418" },
     { keys: ["neumann"], bg: "#4A4F57", fg: "#FFFFFF" },
     { keys: ["dpa"], bg: "#111111", fg: "#FFFFFF" },
     { keys: ["uta"], bg: "#F6D43A", fg: "#111418" },
     { keys: ["coil audio"], bg: "#D9DCE1", fg: "#111418" },
     { keys: ["soyuz"], bg: "#D9DCE1", fg: "#111418" },
-    { keys: ["bae"], bg: "#16255A", fg: "#FF5A5F" },
+    { keys: ["bae"], bg: "#0F2A5E", fg: "#FF5A5F" },
     { keys: ["beyerdynamic", "beyer"], bg: "#111111", fg: "#FFFFFF" },
-    { keys: ["chandler"], bg: "#16255A", fg: "#FFD83D" },
+    { keys: ["chandler"], bg: "#0F2A5E", fg: "#FFD83D" },
     { keys: ["coles"], bg: "#111111", fg: "#FFFFFF" },
     { keys: ["gefell"], bg: "#D9DCE1", fg: "#111418" },
     { keys: ["josephson"], bg: "#111111", fg: "#FFFFFF" },
@@ -39813,10 +39814,10 @@ This typically indicates that your device does not have a healthy Internet conne
     { keys: ["pultec"], bg: "#5D6E96", fg: "#FFFFFF" },
     { keys: ["purple"], bg: "#6B3FA0", fg: "#FFFFFF" },
     { keys: ["retro"], bg: "#A9AEB5", fg: "#111418" },
-    { keys: ["neve"], bg: "#16255A", fg: "#FF5A5F" },
+    { keys: ["neve"], bg: "#0F2A5E", fg: "#FF5A5F" },
     { keys: ["laal"], bg: "#111111", fg: "#FFFFFF" },
     { keys: ["la2a"], bg: "#D9DCE1", fg: "#C4161C" },
-    { keys: ["tube tech"], bg: "#4169E1", fg: "#FFFFFF" },
+    { keys: ["tube tech"], bg: "#1A5ED6", fg: "#FFFFFF" },
   ];
   function colorTokens(s) {
     return String(s || "").toLowerCase().replace(/([a-z])(\d)/g, "$1 $2").replace(/(\d)([a-z])/g, "$1 $2").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
@@ -39849,8 +39850,7 @@ This typically indicates that your device does not have a healthy Internet conne
     const key = String(text || "");
     if (_srcCache.has(key)) return _srcCache.get(key);
     const toks = colorTokens(key);
-    // Exact (whole-word) matches always win; typo-tolerant matching is only a fallback when
-    // nothing matches exactly, so "Clarinet" is never mistaken for "Clavinet".
+    // Exact (whole-word) matches always win; typo-tolerant matching is only a fallback.
     let best = null;
     for (const fuzzy of [!1, !0]) {
       SRC_COLOR_RULES.forEach((rule) => rule.words.forEach((w) => {
@@ -39878,74 +39878,60 @@ This typically indicates that your device does not have a healthy Internet conne
     for (const rule of BRAND_COLOR_RULES) for (const k of rule.keys) if (findPhrase(toks, k) >= 0) return rule;
     return null;
   }
-  function gearAutoColors(gr) { const a = gr ? brandAuto(gr) : null; return a ? { bg: a.bg, fg: a.fg } : null; }
+  // Gear colors are automatic only (brand/model); there is deliberately no manual override.
   function GearColors(gr) {
-    if (!gr) return null;
-    const auto = gearAutoColors(gr), ov = gr.colorOverride;
-    if (!ov || (!ov.bg && !ov.fg)) return auto;
-    const bg = ov.bg || (auto ? auto.bg : "#FFFFFF");
-    return { bg, fg: ov.fg || (ov.bg ? contrastText(ov.bg) : auto ? auto.fg : "#1B1F24") };
+    const a = gr ? brandAuto(gr) : null;
+    return a ? { bg: a.bg, fg: a.fg } : null;
   }
-  function RowColorInfo(ch) {
-    const rule = ch.rowColor ? null : matchSourceColor(ch.source);
-    const bg = ch.rowColor || (rule ? rule.bg : null);
-    return bg ? { bg, fg: contrastText(bg), name: ch.rowColor ? "Custom color" : rule.name, manual: !!ch.rowColor } : null;
+  // The Source field's color: a manually picked color wins, otherwise the category color.
+  function SourceColorInfo(ch) {
+    const rule = ch.sourceColor ? null : matchSourceColor(ch.source);
+    const bg = ch.sourceColor || (rule ? rule.bg : null);
+    return bg ? { bg, fg: contrastText(bg), name: ch.sourceColor ? "Custom color" : rule.name, manual: !!ch.sourceColor } : null;
   }
-  function ColBlank(ch, f) {
-    return f === "source" ? !ch.source : f === "mic" ? !ch.mic : f === "preamp" ? !ch.preamp : f === "outboard" ? !(ch.outboard && ch.outboard.length) : f === "notes" ? !ch.notes : f === "rtn" ? !ch.rtn : f === "status";
+  var SRC_PICK_EXTRAS = [["Red", "#D7373F"], ["Pink", "#E7679A"], ["Teal", "#1F9D9D"], ["Slate", "#5D6E96"], ["Gray", "#8A9099"], ["White", "#FFFFFF"]];
+  function SrcColorPick({ ch, onPatch }) {
+    const h = U.createElement, [open, setOpen] = U.useState(!1), ref = U.useRef(null);
+    U.useEffect(() => {
+      if (!open) return;
+      const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(!1); };
+      const key = (e) => { if (e.key === "Escape") setOpen(!1); };
+      document.addEventListener("mousedown", on);
+      document.addEventListener("keydown", key);
+      return () => { document.removeEventListener("mousedown", on); document.removeEventListener("keydown", key); };
+    }, [open]);
+    const sc = SourceColorInfo(ch), auto = matchSourceColor(ch.source);
+    const presets = [], seen = new Set();
+    SRC_COLOR_RULES.forEach((r) => { if (!seen.has(r.bg)) { seen.add(r.bg); presets.push([r.name, r.bg]); } });
+    SRC_PICK_EXTRAS.forEach((p) => presets.push(p));
+    const set = (v) => onPatch(ch.line, { sourceColor: v });
+    const note = ch.sourceColor ? (auto ? `Custom color (automatic would be ${auto.name}).` : "Custom color.") : auto ? `Automatic: ${auto.name}.` : ch.source ? "No automatic color for this source." : "Type a source and it colors itself.";
+    return h("div", { ref, "data-src-color": !0, style: { position: "relative", flexShrink: 0, display: "flex" }, onClick: (e) => e.stopPropagation() },
+      h("button", {
+        type: "button", tabIndex: -1, title: sc ? `Source color: ${sc.name} \u2014 click to change` : "Pick a color for this source",
+        onClick: () => setOpen((o) => !o),
+        style: { width: 22, height: 22, padding: 0, borderRadius: 5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: sc ? sc.bg : g.raised, border: `1.5px solid ${sc && sc.manual ? g.amber : g.hairline}`, color: sc ? sc.fg : g.textFaint },
+      }, sc ? null : h(PaletteIcon, { size: 12 })),
+      open && h("div", { className: "flash-in", style: { position: "absolute", zIndex: 60, top: "calc(100% + 6px)", left: 0, width: 214, background: g.panel, border: `1px solid ${g.hairline}`, borderRadius: 8, boxShadow: "0 12px 32px rgba(0,0,0,0.22)", padding: 10 } },
+        h("div", { style: { fontSize: 10.5, fontWeight: 700, color: g.textFaint, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6 } }, "Source color"),
+        h("div", { style: { fontSize: 11, color: g.textDim, marginBottom: 8, lineHeight: 1.4 } }, note),
+        h("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 22px)", gap: 6, marginBottom: 10 } },
+          presets.map(([name, bg]) => h("button", { key: bg, type: "button", title: name, onClick: () => { set(bg); setOpen(!1); }, style: { width: 22, height: 22, padding: 0, borderRadius: 5, cursor: "pointer", background: bg, border: `1.5px solid ${ch.sourceColor === bg ? g.amber : "rgba(0,0,0,0.25)"}` } }))),
+        h("label", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: g.textDim, marginBottom: 10 } },
+          h("input", { type: "color", title: "Pick any color", value: /^#[0-9a-f]{6}$/i.test(ch.sourceColor || "") ? ch.sourceColor : sc ? sc.bg : "#ffffff", onChange: (e) => set(e.target.value), style: { width: 40, height: 26, padding: 0, border: `1px solid ${g.hairline}`, borderRadius: 4, background: "none", cursor: "pointer" } }),
+          "Any color\u2026"),
+        h("button", { type: "button", disabled: !ch.sourceColor, onClick: () => { set(null); setOpen(!1); }, style: { width: "100%", background: "transparent", color: g.textDim, border: `1px solid ${g.hairline}`, borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 600, cursor: ch.sourceColor ? "pointer" : "default", opacity: ch.sourceColor ? 1 : 0.45 } }, "Use automatic")));
   }
-  function ColorModal({ ch, onPatch, onClose }) {
-    const h = U.createElement, hexOk = (c) => /^#[0-9a-f]{6}$/i.test(c || "");
-    const rc = RowColorInfo(ch), auto = matchSourceColor(ch.source);
-    const lab = { fontSize: 11, fontWeight: 700, color: g.textFaint, letterSpacing: 0.5, textTransform: "uppercase", margin: "0 0 8px" };
-    const card = { background: g.raised, border: `1px solid ${g.hairline}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12 };
-    const pick = (value, onChange, title) => h("input", { type: "color", title, value: hexOk(value) ? value : "#ffffff", onChange: (e) => onChange(e.target.value), style: { width: 40, height: 28, padding: 0, border: `1px solid ${g.hairline}`, borderRadius: 4, background: "none", cursor: "pointer" } });
-    const small = (label, onClick, disabled) => h("button", { onClick: disabled ? undefined : onClick, disabled: !!disabled, style: { background: "transparent", color: g.textDim, border: `1px solid ${g.hairline}`, borderRadius: 6, padding: "4px 10px", fontSize: 11.5, fontWeight: 600, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.45 : 1, whiteSpace: "nowrap" } }, label);
-    const pieces = [["mic", "Mic / DI", ch.mic], ["preamp", "Preamp", ch.preamp], ...(ch.outboard || []).map((it, i) => ["ob" + i, "Insert " + (i + 1), it])].filter((p) => p[2]);
-    const setPiece = (key, piece, patch) => {
-      const next = { ...piece, colorOverride: patch ? { ...(piece.colorOverride || {}), ...patch } : null };
-      if (key === "mic") onPatch(ch.line, { mic: next });
-      else if (key === "preamp") onPatch(ch.line, { preamp: next });
-      else onPatch(ch.line, { outboard: (ch.outboard || []).map((it, i) => ("ob" + i === key ? next : it)) });
-    };
-    const resetAll = () => onPatch(ch.line, { rowColor: null, mic: ch.mic ? { ...ch.mic, colorOverride: null } : ch.mic, preamp: ch.preamp ? { ...ch.preamp, colorOverride: null } : ch.preamp, outboard: (ch.outboard || []).map((it) => ({ ...it, colorOverride: null })) });
-    const anyManual = !!ch.rowColor || pieces.some((p) => p[2].colorOverride && (p[2].colorOverride.bg || p[2].colorOverride.fg));
-    return h(Ba, { title: `Colors \u2014 ${ch.label}${ch.source ? " \u00B7 " + ch.source : ""}`, onClose, width: 520 },
-      h("div", { style: card },
-        h("p", { style: lab }, "Row background"),
-        h("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
-          h("div", { style: { width: 120, height: 28, borderRadius: 6, background: rc ? rc.bg : "transparent", border: `1px ${rc ? "solid" : "dashed"} ${g.hairline}`, color: rc ? rc.fg : g.textFaint, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 } }, rc ? rc.name : "No color"),
-          pick(rc ? rc.bg : "#ffffff", (v) => onPatch(ch.line, { rowColor: v }), "Pick a custom row color"),
-          small("Use automatic", () => onPatch(ch.line, { rowColor: null }), !ch.rowColor)),
-        h("p", { style: { fontSize: 11.5, color: g.textFaint, margin: "8px 0 0" } }, ch.rowColor ? (auto ? `Automatic would be ${auto.name}.` : "No automatic color matches this source.") : auto ? `Automatic: ${auto.name}, from \u201C${ch.source}\u201D.` : ch.source ? `No automatic color matches \u201C${ch.source}\u201D \u2014 pick one if you like.` : "Type a source and the row colors itself, or pick a color here.")),
-      h("div", { style: card },
-        h("p", { style: lab }, "Gear colors"),
-        pieces.length === 0 ? h("p", { style: { fontSize: 11.5, color: g.textFaint, margin: 0 } }, "Add a mic, preamp or insert to this line to color it.") : null,
-        pieces.map(([key, name, piece]) => {
-          const eff = GearColors(piece), ov = piece.colorOverride || {}, au = gearAutoColors(piece), manual = !!(ov.bg || ov.fg);
-          return h("div", { key, style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${g.hairlineSoft}`, flexWrap: "wrap" } },
-            h("div", { style: { width: 150, flexShrink: 0 } },
-              h("div", { style: { fontSize: 10.5, color: g.textFaint } }, name),
-              h("div", { style: { marginTop: 2, padding: "3px 8px", borderRadius: 5, fontSize: 12, fontWeight: 600, background: eff ? eff.bg : "#fff", color: eff ? eff.fg : g.text, border: `1px solid ${g.hairline}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, hv(piece))),
-            h("label", { style: { fontSize: 11, color: g.textDim, display: "flex", alignItems: "center", gap: 6 } }, "Text", pick(eff ? eff.fg : "#111418", (v) => setPiece(key, piece, { fg: v }), "Text color")),
-            h("label", { style: { fontSize: 11, color: g.textDim, display: "flex", alignItems: "center", gap: 6 } }, "Background", pick(eff ? eff.bg : "#ffffff", (v) => setPiece(key, piece, { bg: v }), "Background color")),
-            small("Use automatic", () => setPiece(key, piece, null), !manual),
-            !au && !manual ? h("span", { style: { fontSize: 10.5, color: g.textFaint } }, "no automatic color for this brand") : null);
-        })),
-      h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
-        small("Reset everything on this line to automatic", resetAll, !anyManual),
-        h("button", { onClick: onClose, style: { background: g.amber, color: "#1a1204", border: "none", borderRadius: 6, padding: "7px 16px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" } }, "Done")));
-  }
-
   // ---- export / print sheets ---------------------------------------------------
   var EX_EXACT = { WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" };
-  function ExT(l, extra) {
-    const rc = l && RowColorInfo(l);
-    return { ...Pt, ...EX_EXACT, ...(rc ? { background: rc.bg, color: rc.fg } : {}), ...(extra || {}) };
+  function ExT(l) { return { ...Pt, ...EX_EXACT }; }
+  function ExS(l) {
+    const sc = SourceColorInfo(l);
+    return sc ? { ...Pt, ...EX_EXACT, background: sc.bg, color: sc.fg, fontWeight: 700 } : { ...Pt, fontWeight: 600 };
   }
   function ExG(l, gear) {
     const gc = gear ? GearColors(gear) : null;
-    return gc ? { ...ExT(l), background: gc.bg, color: gc.fg, fontWeight: 600 } : ExT(l);
+    return gc ? { ...Pt, ...EX_EXACT, background: gc.bg, color: gc.fg, fontWeight: 600 } : { ...Pt };
   }
   function ExChain(l, items) {
     const h = U.createElement;
@@ -39960,10 +39946,10 @@ This typically indicates that your device does not have a healthy Internet conne
   }
   function ExLegend({ channels }) {
     const h = U.createElement, seen = new Map();
-    channels.forEach((c) => { const rc = RowColorInfo(c); if (rc) { const k = rc.manual ? "Custom colors" : rc.name; if (!seen.has(k)) seen.set(k, rc.bg); } });
+    channels.forEach((c) => { const sc = SourceColorInfo(c); if (sc) { const k = sc.manual ? "Custom colors" : sc.name; if (!seen.has(k)) seen.set(k, sc.bg); } });
     if (!seen.size) return null;
     return h("div", { style: { display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", margin: "0 0 10px", fontSize: 10.5, color: "#444", fontFamily: g.sans } },
-      h("span", { style: { fontWeight: 700 } }, "Row colors:"),
+      h("span", { style: { fontWeight: 700 } }, "Source colors:"),
       Array.from(seen.entries()).map(([name, bg]) => h("span", { key: name, style: { display: "inline-flex", alignItems: "center", gap: 5 } },
         h("span", { style: { width: 12, height: 12, borderRadius: 3, background: bg, border: "1px solid rgba(0,0,0,0.3)", ...EX_EXACT } }), name)));
   }
@@ -40215,7 +40201,9 @@ This typically indicates that your device does not have a healthy Internet conne
                             gap: 10,
                             padding: "12px 14px",
                             borderBottom: `1px solid ${g.hairlineSoft}`,
-                            background: RowColorInfo(l) ? RowColorInfo(l).bg : c ? "#fff" : g.zebra, }, children: [
+                            background: c ? "#fff" : g.zebra,
+                          },
+                          children: [
                             (0, d.jsxs)("div", {
                               style: {
                                 display: "flex",
@@ -40241,13 +40229,13 @@ This typically indicates that your device does not have a healthy Internet conne
                                 l.source &&
                                   (0, d.jsx)("span", {
                                     style: {
-                                      fontSize: 12, color: RowColorInfo(l) ? RowColorInfo(l).fg : g.textFaint, opacity: RowColorInfo(l) ? 0.85 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", }, children: l.source,
+                                      fontSize: 12, color: g.textFaint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", ...(SourceColorInfo(l) ? { background: SourceColorInfo(l).bg, color: SourceColorInfo(l).fg, fontWeight: 600, padding: "2px 8px", borderRadius: 6 } : {}), }, children: l.source,
                                   }),
                               ],
                             }),
                             (0, d.jsx)("span", {
                               style: {
-                                fontSize: 13.5, fontWeight: l.mic ? 600 : 400, color: l.mic ? (GearColors(l.mic) ? GearColors(l.mic).fg : RowColorInfo(l) ? RowColorInfo(l).fg : g.text) : RowColorInfo(l) ? RowColorInfo(l).fg : g.textFaint, ...(l.mic && GearColors(l.mic) ? { background: GearColors(l.mic).bg, padding: "3px 9px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.12)" } : {}), textAlign: "right",
+                                fontSize: 13.5, fontWeight: l.mic ? 600 : 400, color: l.mic ? (GearColors(l.mic) ? GearColors(l.mic).fg : g.text) : g.textFaint, ...(l.mic && GearColors(l.mic) ? { background: GearColors(l.mic).bg, padding: "3px 9px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.12)" } : {}), textAlign: "right",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -41494,16 +41482,13 @@ This typically indicates that your device does not have a healthy Internet conne
         hiddenByDefault: !0,
       },
       {
-        id: "source",
-        label: "Source",
-        defaultWidth: 110,
-        minWidth: 70,
+        id: "source", label: "Source", defaultWidth: 140, minWidth: 110,
         hideable: !0,
       },
       {
         id: "mic",
         label: "Mic / DI",
-        defaultWidth: 270,
+        defaultWidth: 250,
         minWidth: 120,
         hideable: !0,
       },
@@ -41545,7 +41530,8 @@ This typically indicates that your device does not have a healthy Internet conne
       {
         id: "actions",
         label: "",
-        defaultWidth: 126, minWidth: 126,
+        defaultWidth: 58,
+        minWidth: 58,
         hideable: !1,
       },
     ];
@@ -41585,9 +41571,10 @@ This typically indicates that your device does not have a healthy Internet conne
     gridTemplate: gr,
     onDragPassOver: ci,
     onSetStatus: bn,
-    onMoveRowSelection: Rn, onOpenColors: OpenColorsFn, }) {
+    onMoveRowSelection: Rn,
+  }) {
     let je = Fr(t),
-      $i = bh[t.lineStatus], RCI = RowColorInfo(t),
+      $i = bh[t.lineStatus], SCI = SourceColorInfo(t),
       rn = (0, U.useRef)(null),
       Lt = (0, U.useRef)(null),
       sn = (0, U.useRef)(null),
@@ -41626,7 +41613,8 @@ This typically indicates that your device does not have a healthy Internet conne
         outline: ie ? `3px solid ${g.amber}` : "3px solid transparent",
         outlineOffset: 2,
         borderRadius: 8,
-        background: xe && !ie ? "rgba(232,163,61,0.10)" : RCI && ColBlank(t, re) ? "rgba(255,255,255,0.84)" : "transparent", boxShadow: ie
+        background: xe && !ie ? "rgba(232,163,61,0.10)" : "transparent",
+        boxShadow: ie
           ? "0 0 0 5px rgba(232,163,61,0.22), 0 0 14px rgba(232,163,61,0.35)"
           : "none",
         transition: "outline-color 0.1s ease, box-shadow 0.1s ease",
@@ -41794,14 +41782,11 @@ This typically indicates that your device does not have a healthy Internet conne
               "data-field-cell": !0,
               style: Ft("source"),
               onClick: () => o(t.line, "source"),
-              children: (0, d.jsx)(zt, {
-                refEl: rn,
-                compact: !0,
-                small: !0,
-                value: t.source,
-                onChange: (ie) => r(t.line, { source: ie }),
-                onKeyDown: (ie) => Ve(ie, "source"),
-              }),
+              children: (0, d.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
+                (0, d.jsx)(zt, { refEl: rn, compact: !0, small: !0, value: t.source, onChange: (ie) => r(t.line, { source: ie }), onKeyDown: (ie) => Ve(ie, "source"),
+                  style: { flex: 1, minWidth: 0, ...(SCI ? { background: SCI.bg, color: SCI.fg, fontWeight: 600, border: "1.5px solid rgba(0,0,0,0.35)", boxShadow: "none" } : {}) } }),
+                (0, d.jsx)(SrcColorPick, { ch: t, onPatch: r }),
+              ] }),
             },
             re,
           );
@@ -41946,7 +41931,11 @@ This typically indicates that your device does not have a healthy Internet conne
           return (0, d.jsxs)(
             "div",
             {
-              "data-line-select": !0, style: { display: "flex", justifyContent: "center", gap: 4, ...(RCI ? { background: "rgba(255,255,255,0.84)", borderRadius: 7, padding: "1px 2px" } : {}) }, children: [ (0, d.jsx)(Ot, { icon: PaletteIcon, size: 13, title: "Colors for this line (row, mic, preamp, inserts)", onClick: () => OpenColorsFn?.(t.line), active: !!(t.rowColor || (t.mic && t.mic.colorOverride) || (t.preamp && t.preamp.colorOverride) || (t.outboard || []).some((o2) => o2 && o2.colorOverride)) }), (0, d.jsx)(Ot, { icon: t.stereoLink ? gT : pT,
+              "data-line-select": !0,
+              style: { display: "flex", justifyContent: "center", gap: 4 },
+              children: [
+                (0, d.jsx)(Ot, {
+                  icon: t.stereoLink ? gT : pT,
                   size: 13,
                   title: "Link stereo (Cmd/Ctrl+L)",
                   onClick: () => h(t.line),
@@ -41986,9 +41975,16 @@ This typically indicates that your device does not have a healthy Internet conne
       className: s ? "flash-in" : "",
       style: {
         display: "grid", gridTemplateColumns: gr, scrollMarginTop: 56, scrollMarginBottom: 12, gap: 10, alignItems: "start", padding: "10px 12px",
-        background: RCI ? RCI.bg : C === t.line ? "rgba(232,163,61,0.10)" : k ? "rgba(232,163,61,0.14)" : s ? g.panel2 : je ? "#fff" : g.zebra,
-        boxShadow: RCI ? (C === t.line || k ? "inset 0 0 0 999px rgba(232,163,61,0.30)" : s ? "inset 0 0 0 999px rgba(255,255,255,0.16)" : "none") : "none",
-        color: RCI ? RCI.fg : void 0,
+        background:
+          C === t.line
+            ? "rgba(232,163,61,0.10)"
+            : k
+              ? "rgba(232,163,61,0.14)"
+              : s
+                ? g.panel2
+                : je
+                  ? "#fff"
+                  : g.zebra,
         borderBottom: `1px solid ${g.hairlineSoft}`,
         borderLeft:
           k || t.stereoLink ? `3px solid ${g.amber}` : "3px solid transparent",
@@ -44216,9 +44212,17 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                               "tr",
                               {
                                 children: [
-                                  (0, d.jsxs)("td", { style: ExT(l, { fontWeight: 700 }), children: [ l.label, l.stereoLink ? ` (${l.stereoLink.role})` : "", ], }),
+                                  (0, d.jsxs)("td", {
+                                    style: Pt,
+                                    children: [
+                                      l.label,
+                                      l.stereoLink
+                                        ? ` (${l.stereoLink.role})`
+                                        : "",
+                                    ],
+                                  }),
                                   (0, d.jsx)("td", {
-                                    style: ExT(l, { fontWeight: 600 }), children: l.source || "\u2014",
+                                    style: ExS(l), children: l.source || "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
                                     style: ExG(l, l.mic), children: l.mic ? Ji(l.mic) : "\u2014",
@@ -44230,13 +44234,22 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                                     style: ExT(l), children: ExChain(l, l.outboard),
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: ExT(l), children: l.dawIn ? `IN ${l.dawIn}` : "\u2014",
+                                    style: Pt,
+                                    children: l.dawIn
+                                      ? `IN ${l.dawIn}`
+                                      : "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: ExT(l), children: l.phantomLock === "REQUIRED" || l.phantomState === "ON" ? "ON" : "OFF",
+                                    style: Pt,
+                                    children:
+                                      l.phantomLock === "REQUIRED" ||
+                                      l.phantomState === "ON"
+                                        ? "ON"
+                                        : "OFF",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: ExT(l, RowColorInfo(l) ? { background: "#fff", color: "#222" } : {}), children: bh[l.lineStatus].label,
+                                    style: Pt,
+                                    children: bh[l.lineStatus].label,
                                   }),
                                 ],
                               },
@@ -44312,7 +44325,8 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                                         .join(", ") || "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: ExT(l, RowColorInfo(l) ? { background: "#fff", color: "#222" } : {}), children: bh[l.lineStatus].label,
+                                    style: Pt,
+                                    children: bh[l.lineStatus].label,
                                   }),
                                 ],
                               },
@@ -44350,15 +44364,23 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                               "tr",
                               {
                                 children: [
-                                  (0, d.jsx)("td", { style: ExT(l, { fontWeight: 700 }), children: l.label, }),
                                   (0, d.jsx)("td", {
-                                    style: ExT(l, { fontWeight: 600 }), children: l.source || "\u2014",
+                                    style: Pt,
+                                    children: l.label,
+                                  }),
+                                  (0, d.jsx)("td", {
+                                    style: ExS(l), children: l.source || "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
                                     style: ExG(l, l.mic), children: l.mic ? Ji(l.mic) : "\u2014",
                                   }),
                                   (0, d.jsx)("td", {
-                                    style: { ...ExT(l), ...(RowColorInfo(l) ? { background: "#fff" } : {}), color: c.color, fontWeight: 700, }, children: c.label,
+                                    style: {
+                                      ...Pt,
+                                      color: c.color,
+                                      fontWeight: 700,
+                                    },
+                                    children: c.label,
                                   }),
                                 ],
                               },
@@ -45932,7 +45954,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
           K.has(ee.line)
             ? {
                 ...ee,
-                source: "", mic: null, preamp: null, outboard: [], dawIn: ee.line, phantomLock: null, phantomState: "OFF", lineStatus: Wi.UNCHECKED, notes: "", rowColor: null, updatedAt: dn(), }
+                source: "", mic: null, preamp: null, outboard: [], dawIn: ee.line, phantomLock: null, phantomState: "OFF", lineStatus: Wi.UNCHECKED, notes: "", sourceColor: null, updatedAt: dn(), }
             : ee,
         ),
       ),
@@ -46137,7 +46159,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
             mic: gn.mic,
             preamp: gn.preamp,
             outboard: gn.outboard,
-            phantomLock: gn.phantomLock, phantomState: gn.phantomState, rowColor: gn.rowColor || null, }); });
+            phantomLock: gn.phantomLock, phantomState: gn.phantomState, sourceColor: gn.sourceColor || null, }); });
         let On = new Set(Q),
           tr = new Set(Ee),
           io = Ee.filter((tt) => !On.has(tt) && Fr(qr.get(tt)));
@@ -46157,7 +46179,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
             : On.has(tt.line) && !tr.has(tt.line)
               ? {
                   ...tt,
-                  source: "", mic: null, preamp: null, outboard: [], phantomLock: null, phantomState: "OFF", rowColor: null, updatedAt: dn(), }
+                  source: "", mic: null, preamp: null, outboard: [], phantomLock: null, phantomState: "OFF", sourceColor: null, updatedAt: dn(), }
               : tt;
         });
       }),
@@ -46404,7 +46426,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
     function Up(v) {
       hi((F) => F.filter((K) => K.id !== v));
     }
-    let [colorLine, setColorLine] = (0, U.useState)(null), hubIdxRef = (0, U.useRef)(null),
+    let hubIdxRef = (0, U.useRef)(null),
       hubSigRef = (0, U.useRef)(""),
       hubTimeRef = (0, U.useRef)(0), hubWriter = (0, U.useRef)(Yl()), hubApplied = (0, U.useRef)(null),
       [hubCloud, setHubCloud] = (0, U.useState)([]),
@@ -46775,7 +46797,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                                               jt.has(v.line) ||
                                               !!fa?.lines.includes(v.line),
                                             onSetStatus: Ea,
-                                            onMoveRowSelection: uu, onOpenColors: setColorLine,
+                                            onMoveRowSelection: uu,
                                             onToggleGroupSelect: lu,
                                             onClearRow: kp,
                                             selectionRect: Bu,
@@ -46866,8 +46888,8 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
                 onApplyTemplate: jr,
                 onDeleteTemplate: Up,
               }),
-            lt === "activity" && (0, d.jsx)(bV, { onClose: () => re(null), activityLog: xn }),
-            colorLine != null && s.find((c2) => c2.line === colorLine) && (0, d.jsx)(ColorModal, { ch: s.find((c2) => c2.line === colorLine), onPatch: Np, onClose: () => setColorLine(null) }),
+            lt === "activity" &&
+              (0, d.jsx)(bV, { onClose: () => re(null), activityLog: xn }),
             lt === "sessions" &&
               (0, d.jsx)(SessionHub, { onClose: () => re(null), sessionId: Qi, sessionName: r.sessionName, connStatus: bp, totalLines: Lr, activeCount: s.filter(Fr).length, cloudSessions: hubCloud, cloudReady: hubReady, snapshots: ie, templates: Ye, copied: xh, onCopyLink: eu, onRename: (v) => i((F) => ({ ...F, sessionName: v })), onNewSession: hubNew, onOpenSession: hubOpen, onHideSession: hubHide, onSaveSnapshot: (v) => hubSnap(v, !1), onDeleteSnapshot: Mp, onRestoreSnapshot: hubRestore, onSaveTemplate: Vp, onApplyTemplate: hubApplyTpl, onDeleteTemplate: Up, onClearSheet: hubClear, onExport: wa, onImport: () => fu.current?.click() }),
             !pn && (0, d.jsx)(AV, { onSet: Mr }),
@@ -47004,7 +47026,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-04 20:25 UTC";
+  var GV = "2026-10-05 04:58 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
