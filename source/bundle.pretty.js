@@ -39898,7 +39898,7 @@ This typically indicates that your device does not have a healthy Internet conne
     const h = U.createElement, [open, setOpen] = U.useState(!1), ref = U.useRef(null);
     U.useEffect(() => {
       if (!open) return;
-      const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(!1); };
+      const on = (e) => { if (ref.current && !(e.composedPath?.().includes(ref.current) || ref.current.contains(e.target))) setOpen(!1); };
       const key = (e) => { if (e.key === "Escape") setOpen(!1); };
       document.addEventListener("mousedown", on);
       document.addEventListener("keydown", key);
@@ -40441,7 +40441,7 @@ This typically indicates that your device does not have a healthy Internet conne
     },
     Z,
   ) {
-    let [W, D] = (0, U.useState)(!1),
+    let [W, D] = (0, U.useState)(!1), [UpX, setUpX] = (0, U.useState)({ up: !1, max: 320, off: 0 }),
       [w, _] = (0, U.useState)(""),
       [A, N] = (0, U.useState)(0),
       [L, R] = (0, U.useState)(!1),
@@ -40452,13 +40452,36 @@ This typically indicates that your device does not have a healthy Internet conne
       Rn = (0, U.useRef)([]), Hx = (0, U.useRef)(!1); ((0, U.useEffect)(() => { Rn.current[A]?.scrollIntoView?.({ block: "nearest" }); }, [A]),
       (0, U.useEffect)(() => {
         function q(De) {
-          gr.current && !gr.current.contains(De.target) && (D(!1), _(""));
+          const path = typeof De.composedPath === "function" ? De.composedPath() : [];
+          gr.current && !path.includes(gr.current) && !gr.current.contains(De.target) && (D(!1), _(""));
         }
         return (
           document.addEventListener("mousedown", q),
           () => document.removeEventListener("mousedown", q)
         );
       }, []));
+    (0, U.useLayoutEffect)(() => {
+      // Decide ONCE, as the list opens, whether it fits below the field. The grid scrolls inside its own
+      // box, so a list that always opened downward was clipped away on low rows (27% visible on the last
+      // rows). Open on whichever side has more room and size the scroll area to it. Deciding only at open
+      // keeps the list from jumping around while you hover or scroll it.
+      if (!W || !gr.current) return;
+      const wr = gr.current.getBoundingClientRect();
+      let p = gr.current.parentElement, clip = null;
+      while (p && p !== document.body) { if (/(auto|scroll|hidden)/.test(getComputedStyle(p).overflowY)) { clip = p.getBoundingClientRect(); break; } p = p.parentElement; }
+      const top = Math.max(clip ? clip.top : 0, 0), bottom = Math.min(clip ? clip.bottom : window.innerHeight, window.innerHeight);
+      const off = gr.current.parentElement ? Math.max(0, Math.round(wr.top - gr.current.parentElement.getBoundingClientRect().top)) : 0;
+      const below = bottom - wr.bottom - 10, above = wr.top - off - top - 10, chrome = 48, want = 320 + chrome;
+      const up = below < want && above > below, room = (up ? above : below) - chrome;
+      setUpX({ up, off, max: Math.max(150, Math.min(320, Math.floor(room))) });
+    }, [W]);
+    (0, U.useLayoutEffect)(() => {
+      // An Outboard cell stacks its chips ABOVE the add box. An upward list must clear that whole stack,
+      // and adding a chip while the list is open pushes the add box down -- so keep just this offset current.
+      if (!W || !gr.current || !gr.current.parentElement) return;
+      const off = Math.max(0, Math.round(gr.current.getBoundingClientRect().top - gr.current.parentElement.getBoundingClientRect().top));
+      setUpX((prev) => (prev.off === off ? prev : { ...prev, off }));
+    });
     let je = (0, U.useMemo)(() => $R(s, w, 60), [s, w]),
       $i = (0, U.useMemo)(() => { let q = {}; return ( (Me === "browse" ? s : je).forEach((De) => { let Ve = De.category || De.brand || "Other"; (q[Ve] || (q[Ve] = []), q[Ve].push(De)); }), q ); }, [je, Me, s]),
       Fb = (0, U.useMemo)(() => Object.keys($i).sort().flatMap((k) => $i[k]), [$i]);
@@ -40883,11 +40906,7 @@ This typically indicates that your device does not have a healthy Internet conne
           (0, d.jsxs)("div", {
             className: "flash-in",
             style: {
-              position: "absolute",
-              zIndex: 60,
-              top: "calc(100% + 4px)",
-              left: 0,
-              width: Math.max(300, 320),
+              position: "absolute", zIndex: 60, ...(UpX.up ? { bottom: `calc(100% + ${4 + UpX.off}px)` } : { top: "calc(100% + 4px)" }), left: 0, width: Math.max(300, 320),
               background: g.panel2,
               border: `1px solid ${g.hairline}`,
               borderRadius: 8,
@@ -40920,7 +40939,7 @@ This typically indicates that your device does not have a healthy Internet conne
                 }),
               }),
               (0, d.jsx)("div", {
-                style: { maxHeight: 320, overflowY: "auto" },
+                style: { maxHeight: UpX.max, overflowY: "auto" },
                 children:
                   Me === "search"
                     ? (0, d.jsxs)(d.Fragment, {
@@ -42020,7 +42039,7 @@ This typically indicates that your device does not have a healthy Internet conne
       o = (0, U.useRef)(null);
     (0, U.useEffect)(() => {
       function h(f) {
-        o.current && !o.current.contains(f.target) && s(!1);
+        o.current && !(f.composedPath?.().includes(o.current) || o.current.contains(f.target)) && s(!1);
       }
       return (
         document.addEventListener("mousedown", h),
@@ -42540,7 +42559,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       s = (0, U.useRef)(null);
     (0, U.useEffect)(() => {
       function a(l) {
-        s.current && !s.current.contains(l.target) && i(!1);
+        s.current && !(l.composedPath?.().includes(s.current) || s.current.contains(l.target)) && i(!1);
       }
       return (
         document.addEventListener("mousedown", a),
@@ -42640,7 +42659,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
     return (
       (0, U.useEffect)(() => {
         function c(h) {
-          l.current && !l.current.contains(h.target) && a(!1);
+          l.current && !(h.composedPath?.().includes(l.current) || l.current.contains(h.target)) && a(!1);
         }
         return (
           document.addEventListener("mousedown", c),
@@ -42947,7 +42966,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       a = (0, U.useRef)(null);
     (0, U.useEffect)(() => {
       function C(y) {
-        a.current && !a.current.contains(y.target) && i(!1);
+        a.current && !(y.composedPath?.().includes(a.current) || a.current.contains(y.target)) && i(!1);
       }
       return (
         document.addEventListener("mousedown", C),
@@ -47026,7 +47045,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-05 05:10 UTC";
+  var GV = "2026-10-05 15:17 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
