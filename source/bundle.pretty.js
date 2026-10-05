@@ -40293,6 +40293,11 @@ This typically indicates that your device does not have a healthy Internet conne
       }
       .flash-in { animation: flashIn 0.18s ease-out; }
       .conflict-pulse { animation: pulseRing 1.6s infinite; }
+      /* a gear field whose value was just picked is "locked in": still keyboard-active (Tab/Enter/arrows keep
+         working) but it must not look like it is being edited -- no caret, no highlighted text, no amber ring */
+      input[data-locked="1"] { caret-color: transparent; }
+      input[data-locked="1"]::selection { background: transparent; color: inherit; }
+      [data-field-cell]:has(input[data-locked="1"]) { outline-color: transparent !important; box-shadow: none !important; }
       @media print {
         body * { visibility: hidden; }
         #print-root, #print-root * { visibility: visible; }
@@ -40441,7 +40446,7 @@ This typically indicates that your device does not have a healthy Internet conne
     },
     Z,
   ) {
-    let [W, D] = (0, U.useState)(!1), [UpX, setUpX] = (0, U.useState)({ up: !1, max: 320, off: 0 }),
+    let [W, D] = (0, U.useState)(!1), [Lk, setLk] = (0, U.useState)(!1), [UpX, setUpX] = (0, U.useState)({ up: !1, max: 320, off: 0 }),
       [w, _] = (0, U.useState)(""),
       [A, N] = (0, U.useState)(0),
       [L, R] = (0, U.useState)(!1),
@@ -40482,11 +40487,12 @@ This typically indicates that your device does not have a healthy Internet conne
       const off = Math.max(0, Math.round(gr.current.getBoundingClientRect().top - gr.current.parentElement.getBoundingClientRect().top));
       setUpX((prev) => (prev.off === off ? prev : { ...prev, off }));
     });
+    (0, U.useEffect)(() => { W && setLk(!1); }, [W]);
     let je = (0, U.useMemo)(() => $R(s, w, 60), [s, w]),
       $i = (0, U.useMemo)(() => { let q = {}; return ( (Me === "browse" ? s : je).forEach((De) => { let Ve = De.category || De.brand || "Other"; (q[Ve] || (q[Ve] = []), q[Ve].push(De)); }), q ); }, [je, Me, s]),
       Fb = (0, U.useMemo)(() => Object.keys($i).sort().flatMap((k) => $i[k]), [$i]);
     function rn(q) {
-      c ? (f(q), _("")) : (r(q), D(!1), _(""));
+      c ? (f(q), _("")) : (r(q), D(!1), _(""), setLk(!0), requestAnimationFrame(() => { const el = ci.current; el && document.activeElement === el && el.select(); }));
     }
     function Lt() {
       let q = w.trim();
@@ -40506,6 +40512,7 @@ This typically indicates that your device does not have a healthy Internet conne
       rn(De);
     }
     function sn(q) {
+      setLk(!1);
       let v = q.target.value;
       if (!W && n && mr && v !== mr && v.includes(mr)) v = v.replace(mr, "");
       (_(v), N(0), W || D(!0), Me === "browse" && ht("search"));
@@ -40671,8 +40678,7 @@ This typically indicates that your device does not have a healthy Internet conne
                   value: w,
                   onChange: sn,
                   onKeyDown: Mr,
-                  onBlur: (ev) => {
-                    if (Hx.current) return;
+                  onBlur: (ev) => { setLk(!1); if (Hx.current) return;
                     if (ev.relatedTarget && gr.current && gr.current.contains(ev.relatedTarget)) return;
                     setTimeout(() => { (D(!1), _("")); }, 150);
                   },
@@ -40783,13 +40789,15 @@ This typically indicates that your device does not have a healthy Internet conne
                     ((ci.current = q),
                       typeof Z == "function" ? Z(q) : Z && (Z.current = q));
                   },
-                  value: Yn,
-                  onMouseDown: (q) => { q.currentTarget.dataset.fresh = document.activeElement !== q.currentTarget ? "1" : ""; },
+                  value: Yn, "data-locked": Lk && !W ? "1" : void 0, onMouseDown: (q) => {
+                    const el = q.currentTarget;
+                    el.dataset.fresh = document.activeElement !== el || Lk ? "1" : "";
+                    if (Lk) { setLk(!1); requestAnimationFrame(() => el.select()); }
+                  },
                   onMouseUp: (q) => { if (q.currentTarget.dataset.fresh) { q.preventDefault(); q.currentTarget.dataset.fresh = ""; } },
                   onFocus: (q) => { W || q.target.select(); }, onChange: sn,
                   onKeyDown: pn,
-                  onBlur: (ev) => {
-                    if (Hx.current) return;
+                  onBlur: (ev) => { setLk(!1); if (Hx.current) return;
                     if (ev.relatedTarget && gr.current && gr.current.contains(ev.relatedTarget)) return;
                     setTimeout(() => { (D(!1), _("")); }, 150);
                   },
@@ -47045,7 +47053,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-05 15:17 UTC";
+  var GV = "2026-10-05 15:55 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
