@@ -39778,30 +39778,30 @@ This typically indicates that your device does not have a healthy Internet conne
   // trailing "s" and, for long words, one typo. The longest/leftmost phrase wins
   // ("Synth Bass" is Bass, "Background Vox" is Background Vocals, not Vocals).
   var SRC_COLOR_RULES = [
-    { name: "Guitars", bg: "#2F9E5B", words: ["guitar", "gtr", "gt", "ac", "acoustic", "e gtr", "a gtr", "ac gtr", "elec gtr", "electric guitar", "electric gtr", "amp", "cab", "banjo", "mandolin", "uke", "ukulele", "dobro", "steel", "pedal steel"] },
-    { name: "Bass", bg: "#2E6BDB", words: ["bass", "e bass", "synth bass", "bass guitar", "acoustic bass", "upright bass", "double bass", "dbl bass"] },
-    { name: "Keys", bg: "#A83279", words: ["keys", "key", "keyboard", "kb", "kbd", "nord", "synth", "moog", "mini", "mini moog", "model d", "mellotron", "melotron", "melo", "mello", "obx", "obx8", "ob6", "prophet", "p5", "p10", "rhodes", "wurli", "wurlitzer", "organ", "b3", "hammond", "clav", "clavinet", "juno", "jupiter", "oberheim", "sequential", "arp", "electric piano", "e piano", "ep"] },
-    { name: "Drums", bg: "#7C4DCC", words: ["drums", "drum", "kit", "kick", "kick in", "kick out", "sub kick", "kick sub", "snare", "snr", "sn", "snare top", "snare bottom", "snare btm", "snare bot", "snr top", "snr btm", "snr bot", "tom", "floor", "rack", "hat", "hi hat", "hihat", "hh", "overhead", "overheads", "oh", "ohs", "ovh", "ovhd", "bass drum", "bd", "sd", "ride", "cymbal", "crash", "perc", "percussion", "conga", "bongo", "shaker", "tambourine", "tamb", "cajon", "djembe", "cowbell", "timbale"] },
-    { name: "Brass / Horns", bg: "#E8832A", words: ["trumpet", "trump", "tpt", "trpt", "horn", "sax", "saxophone", "trombone", "tbn", "tbone", "bone", "tuba", "brass", "flugel", "flugelhorn", "bari"] },
-    { name: "Woods", bg: "#8A5A33", words: ["wood", "woods", "woodwind", "clarinet", "flute", "flt", "clar", "oboe", "bassoon", "bsn", "piccolo", "picc", "recorder", "english horn", "eng horn", "bass clarinet", "alto flute"] },
+    { name: "Guitars", bg: "#14603A", words: ["guitar", "gtr", "gt", "ac", "acoustic", "e gtr", "a gtr", "ac gtr", "elec gtr", "electric guitar", "electric gtr", "amp", "cab", "banjo", "mandolin", "uke", "ukulele", "dobro", "steel", "pedal steel"] },
+    { name: "Bass", bg: "#1D4FAA", words: ["bass", "e bass", "synth bass", "bass guitar", "acoustic bass", "upright bass", "double bass", "dbl bass"] },
+    { name: "Keys", bg: "#902B68", words: ["keys", "key", "keyboard", "kb", "kbd", "nord", "synth", "moog", "mini", "mini moog", "model d", "mellotron", "melotron", "melo", "mello", "obx", "obx8", "ob6", "prophet", "p5", "p10", "rhodes", "wurli", "wurlitzer", "organ", "b3", "hammond", "clav", "clavinet", "juno", "jupiter", "oberheim", "sequential", "arp", "electric piano", "e piano", "ep"] },
+    { name: "Drums", bg: "#6534B7", words: ["drums", "drum", "kit", "kick", "kick in", "kick out", "sub kick", "kick sub", "snare", "snr", "sn", "snare top", "snare bottom", "snare btm", "snare bot", "snr top", "snr btm", "snr bot", "tom", "floor", "rack", "hat", "hi hat", "hihat", "hh", "overhead", "overheads", "oh", "ohs", "ovh", "ovhd", "bass drum", "bd", "sd", "ride", "cymbal", "crash", "perc", "percussion", "conga", "bongo", "shaker", "tambourine", "tamb", "cajon", "djembe", "cowbell", "timbale"] },
+    { name: "Brass / Horns", bg: "#EA9041", words: ["trumpet", "trump", "tpt", "trpt", "horn", "sax", "saxophone", "trombone", "tbn", "tbone", "bone", "tuba", "brass", "flugel", "flugelhorn", "bari"] },
+    { name: "Woods", bg: "#744B2B", words: ["wood", "woods", "woodwind", "clarinet", "flute", "flt", "clar", "oboe", "bassoon", "bsn", "piccolo", "picc", "recorder", "english horn", "eng horn", "bass clarinet", "alto flute"] },
     { name: "Piano", bg: "#1E1E22", words: ["piano", "pno", "grand", "grand piano", "baby grand", "upright piano", "acoustic piano"] },
     { name: "Vocals", bg: "#F2C230", words: ["vox", "vocal", "vocals", "voc", "vocs", "lead vox", "lead vocal", "lead vocals", "lv", "main vox", "singer"] },
-    { name: "Background Vocals", bg: "#E8832A", words: ["bv", "bvs", "bvox", "bgv", "bgvs", "bg vox", "bg vocal", "bg vocals", "bgd vox", "bk vox", "bkg vox", "background vox", "background vocal", "background vocals", "backing vox", "backing vocal", "backing vocals", "harmony", "harmonies", "harm", "gang vox", "choir"] },
+    { name: "Background Vocals", bg: "#EA9041", words: ["bv", "bvs", "bvox", "bgv", "bgvs", "bg vox", "bg vocal", "bg vocals", "bgd vox", "bk vox", "bkg vox", "background vox", "background vocal", "background vocals", "backing vox", "backing vocal", "backing vocals", "harmony", "harmonies", "harm", "gang vox", "choir"] },
   ];
   // GEAR: matched on brand or model. bg = field background, fg = text.
   // Royal blue is a clean blue (hue ~218) -- the CSS "royalblue" leans purple.
   var BRAND_COLOR_RULES = [
-    { keys: ["api"], bg: "#1A5ED6", fg: "#FFFFFF" },
-    { keys: ["manley"], bg: "#0F2A5E", fg: "#FFFFFF" },
+    { keys: ["api"], bg: "#124AB3", fg: "#FFFFFF" },
+    { keys: ["manley"], bg: "#091B44", fg: "#FFFFFF" },
     { keys: ["bock"], bg: "#9FE3BE", fg: "#111418" },
     { keys: ["neumann"], bg: "#4A4F57", fg: "#FFFFFF" },
     { keys: ["dpa"], bg: "#111111", fg: "#FFFFFF" },
     { keys: ["uta"], bg: "#F6D43A", fg: "#111418" },
     { keys: ["coil audio"], bg: "#D9DCE1", fg: "#111418" },
     { keys: ["soyuz"], bg: "#D9DCE1", fg: "#111418" },
-    { keys: ["bae"], bg: "#0F2A5E", fg: "#FF5A5F" },
+    { keys: ["bae"], bg: "#091B44", fg: "#FF8585" },
     { keys: ["beyerdynamic", "beyer"], bg: "#111111", fg: "#FFFFFF" },
-    { keys: ["chandler"], bg: "#0F2A5E", fg: "#FFD83D" },
+    { keys: ["chandler"], bg: "#091B44", fg: "#FFD83D" },
     { keys: ["coles"], bg: "#111111", fg: "#FFFFFF" },
     { keys: ["gefell"], bg: "#D9DCE1", fg: "#111418" },
     { keys: ["josephson"], bg: "#111111", fg: "#FFFFFF" },
@@ -39811,13 +39811,13 @@ This typically indicates that your device does not have a healthy Internet conne
     { keys: ["empirical labs", "empirical"], bg: "#0B0B0B", fg: "#FFD83D" },
     { keys: ["dangerous audio", "dangerous"], bg: "#0B0B0B", fg: "#FF8A1F" },
     { keys: ["maselec"], bg: "#111111", fg: "#FFFFFF" },
-    { keys: ["pultec"], bg: "#5D6E96", fg: "#FFFFFF" },
+    { keys: ["pultec"], bg: "#46557C", fg: "#FFFFFF" },
     { keys: ["purple"], bg: "#6B3FA0", fg: "#FFFFFF" },
     { keys: ["retro"], bg: "#A9AEB5", fg: "#111418" },
-    { keys: ["neve"], bg: "#0F2A5E", fg: "#FF5A5F" },
+    { keys: ["neve"], bg: "#091B44", fg: "#FF8585" },
     { keys: ["laal"], bg: "#111111", fg: "#FFFFFF" },
-    { keys: ["la2a"], bg: "#D9DCE1", fg: "#C4161C" },
-    { keys: ["tube tech"], bg: "#1A5ED6", fg: "#FFFFFF" },
+    { keys: ["la2a"], bg: "#EEF0F3", fg: "#9E1118" },
+    { keys: ["tube tech"], bg: "#124AB3", fg: "#FFFFFF" },
   ];
   function colorTokens(s) {
     return String(s || "").toLowerCase().replace(/([a-z])(\d)/g, "$1 $2").replace(/(\d)([a-z])/g, "$1 $2").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
@@ -39872,7 +39872,11 @@ This typically indicates that your device does not have a healthy Internet conne
     const v = parseInt(m[1], 16), ch = [(v >> 16) & 255, (v >> 8) & 255, v & 255].map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
     return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
   }
-  function contrastText(bg) { return relLum(bg) > 0.179 ? "#111418" : "#FFFFFF"; }
+  function contrastText(bg) {
+    // true WCAG ratios against white and the dark text color, pick the clearer one
+    const L = relLum(bg), onWhite = 1.05 / (L + 0.05), onDark = (L + 0.05) / (relLum("#111418") + 0.05);
+    return onWhite >= onDark ? "#FFFFFF" : "#111418";
+  }
   function brandAuto(gr) {
     const toks = colorTokens((gr.brand || "") + " " + (gr.name || ""));
     for (const rule of BRAND_COLOR_RULES) for (const k of rule.keys) if (findPhrase(toks, k) >= 0) return rule;
@@ -39889,7 +39893,7 @@ This typically indicates that your device does not have a healthy Internet conne
     const bg = ch.sourceColor || (rule ? rule.bg : null);
     return bg ? { bg, fg: contrastText(bg), name: ch.sourceColor ? "Custom color" : rule.name, manual: !!ch.sourceColor } : null;
   }
-  var SRC_PICK_EXTRAS = [["Red", "#D7373F"], ["Pink", "#E7679A"], ["Teal", "#1F9D9D"], ["Slate", "#5D6E96"], ["Gray", "#8A9099"], ["White", "#FFFFFF"]];
+  var SRC_PICK_EXTRAS = [["Red", "#A12027"], ["Pink", "#EC86AE"], ["Teal", "#24B7B7"], ["Slate", "#465270"], ["Gray", "#A3A7AE"], ["White", "#FFFFFF"]];
   function SrcColorPick({ ch, onPatch }) {
     const h = U.createElement, [open, setOpen] = U.useState(!1), ref = U.useRef(null);
     U.useEffect(() => {
@@ -47026,7 +47030,7 @@ Vox chain idea \u2014 U47 FET \u2192 API 512c \u2192 1176`,
       }),
     });
   }
-  var GV = "2026-10-05 04:58 UTC";
+  var GV = "2026-10-05 05:06 UTC";
   function HV({ onLock: t }) {
     return (0, ct.jsxs)("div", {
       style: {
